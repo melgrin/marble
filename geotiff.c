@@ -119,7 +119,7 @@ bool geotiff_read(const char* filename, GeoTIFFData* img) {
     TIFF* tif = XTIFFOpen(filename,"r");
     if (!tif) {
         printf("Failed to open %s\n", filename);
-        ret = 1;
+        ret = false;
         goto end;
     }
     printf("Reading %s\n", filename);

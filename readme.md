@@ -15,3 +15,5 @@ todo:
 
 https://visibleearth.nasa.gov/collection/1484/blue-marble
 https://visibleearth.nasa.gov/grid
+
+Started life as `raylib/examples/models/models_heightmap.c`

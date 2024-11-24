@@ -1,8 +1,4 @@
-// Started life as raylib/examples/models/models_heightmap.c
-
 #include <assert.h>
-
-#include <geotiff/xtiffio.h>  // for TIFF
 
 #include "./geotiff.c"
 
@@ -18,6 +14,7 @@
     b = tmp; \
 } while(0);
 
+// raylib has `Image ImageFromImage(Image image, Rectangle rec)` and `void ImageCrop(Image* image, Rectangle crop)`, either of which I could probably use instead of this, except that they make copies of the src data instead of views/slices
 static u8* get_rect(const u8* src, u32 wsrc, u32 hsrc, u32 x0, u32 y0, u32 x1, u32 y1) {
     if (x0 > x1) swap(u32, x0, x1);
     if (y0 > y1) swap(u32, y0, y1);
@@ -42,12 +39,43 @@ static u8* get_rect(const u8* src, u32 wsrc, u32 hsrc, u32 x0, u32 y0, u32 x1, u
 
 #include <raylib/raylib.h>
 
-#ifdef LOAD_GEOTIFF
-#define STB_IMAGE_WRITE_IMPLEMENTATION
-#include <stb/stb_image_write.h>
-#endif
 
-int main(int argc, char** argv) {
+#define STB_IMAGE_IMPLEMENTATION
+#include <stb/stb_image.h>
+// by default, raylib copmiles-out its ability to load jpg images.  there is no way to check if the version of raylib you're using has it enabled or not, because it's via source file preprocessor macros (see rtextures.c, SUPPORT_FILEFORMAT_JPG).  there is no way to change this without rebuilding all of raylib.  since I don't want to blindly use a custom raylib build, and I don't want to build raylib from source in the first place, this circumvents that part of raylib.
+static Image load_image(const char* filename) {
+    int x, y, n;
+    unsigned char *data = stbi_load(filename, &x, &y, &n, 0);
+    if (!data) {
+        printf("Failed to load %s\n", filename);
+        exit(1);
+    }
+    assert(data);
+    assert(x > 0);
+    assert(y > 0);
+
+    PixelFormat format;
+    if (n == 1) format = PIXELFORMAT_UNCOMPRESSED_GRAYSCALE;
+    else if (n == 2) format = PIXELFORMAT_UNCOMPRESSED_GRAY_ALPHA;
+    else if (n == 3) format = PIXELFORMAT_UNCOMPRESSED_R8G8B8;
+    else if (n == 4) format = PIXELFORMAT_UNCOMPRESSED_R8G8B8A8;
+    else assert(false);
+
+    Image image = {
+        .data = data,
+        .width = x,
+        .height = y,
+        .mipmaps = 1, // default, according to struct definition
+        .format = format,
+    };
+
+    return image;
+}
+
+//#define STB_IMAGE_WRITE_IMPLEMENTATION
+//#include <stb/stb_image_write.h>
+
+int main() {
 
     const int screenWidth = 800;
     const int screenHeight = 600;
@@ -63,67 +91,67 @@ int main(int argc, char** argv) {
 
     //const char* filename = argc > 1 ? argv[1] : "resources/heightmap.png";
 
-    // https://visibleearth.nasa.gov/grid
-    // https://visibleearth.nasa.gov/collection/1484/blue-marble
-    // https://visibleearth.nasa.gov/collection/1723/visible-earth
 
-    // https://visibleearth.nasa.gov/images/73934/topography
-    // "Data in these images were scaled 0-6400 meters."
+    const char* filename = "local/gebco_08_rev_elev_A1_grey_geo.tif";
+    GeoTIFFData topo_image_full;
+    if (!geotiff_read(filename, &topo_image_full)) return 1;
+    Point2i tl = geotiff_lat_lon_to_pixel(48.106075, -123.495817, topo_image_full.geo);
+    Point2i br = geotiff_lat_lon_to_pixel(46.757553, -120.915573, topo_image_full.geo);
+    u8* region = get_rect(topo_image_full.data, topo_image_full.width, topo_image_full.height, tl.x, tl.y, br.x, br.y);
+    const int imgw = abs(br.x - tl.x);
+    const int imgh = abs(br.y - tl.y);
+    //if (!stbi_write_bmp("tmp.bmp", imgw, imgh, 1, region)) { printf("failed to write bmp\n"); }
 
-    // https://visibleearth.nasa.gov/images/147190/explorer-base-map
-    // https://visibleearth.nasa.gov/images/144898/earth-at-night-black-marble-2016-color-maps
+    PixelFormat format;
+    if (topo_image_full.bytes_per_pixel == 1) format = PIXELFORMAT_UNCOMPRESSED_GRAYSCALE;
+    else if (topo_image_full.bytes_per_pixel == 2) format = PIXELFORMAT_UNCOMPRESSED_GRAY_ALPHA;
+    else if (topo_image_full.bytes_per_pixel == 3) format = PIXELFORMAT_UNCOMPRESSED_R8G8B8;
+    else if (topo_image_full.bytes_per_pixel == 4) format = PIXELFORMAT_UNCOMPRESSED_R8G8B8A8;
+    else assert(false);
 
-
-
-#if LOAD_GEOTIFF
-    const char* filename = "local/gebco_08_rev_elev_A1_grey_geo.tif"; // nocheckin
-    GeoTIFFData img;
-    if (!geotiff_read(filename, &img)) return 1;
-    Point2i tl = geotiff_lat_lon_to_pixel(48.106075, -123.495817, img.geo);
-    Point2i br = geotiff_lat_lon_to_pixel(46.757553, -120.915573, img.geo);
-    u8* region = get_rect(img.data, img.width, img.height, tl.x, tl.y, br.x, br.y);
-    int imgw = abs(br.x - tl.x);
-    int imgh = abs(br.y - tl.y);
-    if (!stbi_write_bmp("tmp.bmp", imgw, imgh, 1, region)) { printf("failed to write bmp\n"); }
-
-    //Image topo_image = LoadImageFromMemory(".bmp", region, imgw * imgh * img.bytes_per_pixel);
     Image topo_image = {
         .data = region,
         .width = imgw,
         .height = imgh,
         .mipmaps = 1, // default, according to struct definition
-        .format = PIXELFORMAT_UNCOMPRESSED_GRAYSCALE, // XXX this is only because I know the image I'm loading is grayscale (gebco_08_rev_elev_A1_grey_geo.tif)
+        .format = format,
     };
 
-#else
-    Image topo_image = LoadImage("resources/sea_region_topo.png"); // Load heightmap image (RAM)
-#endif
-    //Texture2D texture = LoadTextureFromImage(image); // Convert image to texture (VRAM)
 
-    // Generate heightmap mesh (RAM and VRAM)
     Mesh mesh = GenMeshHeightmap(topo_image, (Vector3) {
         16 * ((float) topo_image.width / (float) topo_image.height),
-        8, // TODO topo image elevations are scaled 0-6400 meters
+        8, // TODO topo image elevations are scaled 0-6400 meters, according to the description on https://visibleearth.nasa.gov/images/73934/topography, but this is just a hardcoded value for now instead
         16 });
     Model model = LoadModelFromMesh(mesh);
 
-    //Image color_image = LoadImage("resources/sea_region_color.jpg");
-    Image color_image = LoadImage("resources/sea_region_color.png"); // "Data format not supported" w/jpg, and needed to resize it anyway (though could use ImageResize for that)
-#if LOAD_GEOTIFF
-    Texture2D texture = LoadTextureFromImage(topo_image);
-#else
-    Texture2D texture = LoadTextureFromImage(color_image);
-#endif
 
-    Model solid_color_model_for_grid = LoadModelFromMesh(mesh);
-    solid_color_model_for_grid.materials[0].maps[MATERIAL_MAP_DIFFUSE].color = LIME;
+    Image color_image_full = load_image("local/world.200405.3x21600x21600.A1.jpg");
+    if (color_image_full.width != topo_image_full.width ||
+        color_image_full.height != topo_image_full.height) {
+        ImageResize(&color_image_full, topo_image_full.width, topo_image_full.height); // this frees the original image.data
+    }
+    Rectangle crop = {
+        .x = (float) tl.x,
+        .y = (float) tl.y,
+        .width  = (float) abs(br.x - tl.x),
+        .height = (float) abs(br.y - tl.y),
+    };
+    //ImageCrop(&color_image, crop); // this frees the original image.data
+    Image color_image = ImageFromImage(color_image_full, crop); // mallocs new image, retains original
+
+    //Texture2D texture = LoadTextureFromImage(topo_image); // TODO add key press toggle
+    Texture2D texture = LoadTextureFromImage(color_image);
+
+    Model grid_model = LoadModelFromMesh(mesh);
+    grid_model.materials[0].maps[MATERIAL_MAP_DIFFUSE].color = LIME;
 
     model.materials[0].maps[MATERIAL_MAP_DIFFUSE].texture = texture; // Set map diffuse texture
     Vector3 mapPosition = { 0.0f, 0.0f, 0.0f }; // Define model position
 
     // Unload images from RAM, already uploaded to VRAM
-    UnloadImage(topo_image);
-    UnloadImage(color_image);
+    //this is a region, so don't free it: // UnloadImage(topo_image);
+    //UnloadImage(color_image);
+    //UnloadImage(color_image_full);
 
     SetTargetFPS(60);
 
@@ -161,7 +189,7 @@ int main(int argc, char** argv) {
                 if (showFloor) DrawPlane((Vector3){0,0,0}, (Vector2){20,20}, GRAY);
 
                 if (drawSolid) DrawModelEx(model, mapPosition, rotationAxis, rotationAngle, vScale, WHITE);
-                if (drawWires) DrawModelWiresEx(solid_color_model_for_grid, mapPosition, rotationAxis, rotationAngle, vScale, WHITE);
+                if (drawWires) DrawModelWiresEx(grid_model, mapPosition, rotationAxis, rotationAngle, vScale, WHITE);
 
                 if (showGrid) DrawGrid(20, 1.0f);
 
@@ -182,10 +210,13 @@ int main(int argc, char** argv) {
 
     CloseWindow();              // Close window and OpenGL context
 
-#if LOAD_GEOTIFF
-    geotiff_free(img);
-#endif
+    geotiff_free(topo_image_full);
 
     return 0;
 }
+
+
+// TODO topo and color are handled differently wrt cropping.  topo is subregioned by my get_rect function.  that function doesn't work for color right now, so instead I'm using ImageFromImage.  but ImageFromImage makes a copy.  the end goal is to reuse the same cropped buffer, probably, so ImageFromImage isn't what I want.
+// TODO preprocess color image so it's already deflated and cropped.  right now it takes ~15 seconds during startup to do this.  note that nasa does provide .png, so could do that.  consider download speed/size tradeoff.
+// TODO region selection - lat/lon vs which images are downloaded
 
