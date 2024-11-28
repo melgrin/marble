@@ -1,3 +1,4 @@
+#include <stdio.h>
 #include <assert.h>
 
 #include "./geotiff.c"
@@ -40,31 +41,70 @@ static u8* get_rect(const u8* src, u32 wsrc, u32 hsrc, u32 x0, u32 y0, u32 x1, u
 #include <raylib/raylib.h>
 
 
+#include "./raw_file.c"
+
 #define STB_IMAGE_IMPLEMENTATION
+#define STBI_FAILURE_USERMSG
 #include <stb/stb_image.h>
-// by default, raylib copmiles-out its ability to load jpg images.  there is no way to check if the version of raylib you're using has it enabled or not, because it's via source file preprocessor macros (see rtextures.c, SUPPORT_FILEFORMAT_JPG).  there is no way to change this without rebuilding all of raylib.  since I don't want to blindly use a custom raylib build, and I don't want to build raylib from source in the first place, this circumvents that part of raylib.
+// by default, raylib copmiles-out its ability to load jpg images.  there is no way to check if the version of raylib you're using has it enabled or not, because it's via source file preprocessor macros (see rtextures.c, SUPPORT_FILEFORMAT_JPG).  there is no way to change this without rebuilding all of raylib.  since I don't want to blindly use a custom raylib build, and I don't want to build raylib from source in the first place, this circumvents that part of raylib.  [will probably reconsider the not-from-source decision in the future, because I'm currently planning to use rlImGui+dear-imgui which are both source-only libraries.  so might as well go full submodule on all the dependencies.]
+#define QOI_IMPLEMENTATION
+#include <qoi.h>
 static Image load_image(const char* filename) {
-    int x, y, n;
-    unsigned char *data = stbi_load(filename, &x, &y, &n, 0);
-    if (!data) {
-        printf("Failed to load %s\n", filename);
-        exit(1);
+    double t0 = GetTime();
+
+    const char* ext = strrchr(filename, '.');
+    if (!ext) exit(1);
+
+    u8* data;
+    u32 w, h, n;
+    if (0 == strcmp(ext, ".raw")) {
+        RawImageInfo info;
+        if (!raw_read(filename, &data, &info)) {
+            printf("Failed to load %s\n", filename);
+            exit(1);
+        }
+        w = info.width;
+        h = info.height;
+        n = info.channels;
+    } else if (0 == strcmp(ext, ".qoi")) {
+        qoi_desc desc;
+        void* mem = qoi_read(filename, &desc, 0);
+        if (!mem) {
+            printf("Failed to load %s\n", filename);
+            exit(1);
+        }
+        data = mem;
+        w = desc.width;
+        h = desc.height;
+        n = desc.channels;
+    } else {
+        int x, y, comp;
+        data = stbi_load(filename, &x, &y, &comp, 0);
+        if (!data) {
+            printf("Failed to load %s: %s\n", filename, stbi_failure_reason());
+            exit(1);
+        }
+        assert(x > 0);
+        assert(y > 0);
+        w = (u32) x;
+        h = (u32) y;
+        n = (u32) comp;
     }
-    assert(data);
-    assert(x > 0);
-    assert(y > 0);
+
+    double elapsed = GetTime() - t0;
+    printf("loaded %s in %.3f seconds; %u x %u, num channels = %u\n", filename, elapsed, w, h, n);
 
     PixelFormat format;
     if (n == 1) format = PIXELFORMAT_UNCOMPRESSED_GRAYSCALE;
     else if (n == 2) format = PIXELFORMAT_UNCOMPRESSED_GRAY_ALPHA;
     else if (n == 3) format = PIXELFORMAT_UNCOMPRESSED_R8G8B8;
     else if (n == 4) format = PIXELFORMAT_UNCOMPRESSED_R8G8B8A8;
-    else assert(false);
+    else { assert(false); exit(1); }
 
     Image image = {
         .data = data,
-        .width = x,
-        .height = y,
+        .width = w,
+        .height = h,
         .mipmaps = 1, // default, according to struct definition
         .format = format,
     };
@@ -80,7 +120,9 @@ int main() {
     const int screenWidth = 800;
     const int screenHeight = 600;
 
-    InitWindow(screenWidth, screenHeight, "raylib [models] example - heightmap loading and drawing");
+    double t0 = GetTime();
+    InitWindow(screenWidth, screenHeight, "marble");
+    printf("%.3f seconds for InitWindow\n", GetTime() - t0);
 
     Camera camera = { 0 };
     camera.position = (Vector3){ 18.0f, 8.0f, 18.0f };      // Camera position
@@ -125,7 +167,12 @@ int main() {
     Model model = LoadModelFromMesh(mesh);
 
 
-    Image color_image_full = load_image("local/world.200405.3x21600x21600.A1.jpg");
+    //Image color_image_full = load_image("local/world.200405.3x21600x21600.A1.bmp");
+    //Image color_image_full = load_image("local/world.200405.3x21600x21600.A1.png"); // stbi_load fails with error "Image too large to decode".  looks like it can only load PNGs with decompressed would-be size of ~1 GB or less.
+    //Image color_image_full = load_image("local/world.200405.3x21600x21600.A1.raw"); // this is actually 10800x10800
+    //Image color_image_full = load_image("local/world.200405.3x21600x21600.A1.resized.png"); // this is actually 10800x10800
+    Image color_image_full = load_image("local/world.200405.3x21600x21600.A1.resized.qoi"); // this is actually 10800x10800
+    assert(color_image_full.width == topo_image_full.width); // XXX
     if (color_image_full.width != topo_image_full.width ||
         color_image_full.height != topo_image_full.height) {
         ImageResize(&color_image_full, topo_image_full.width, topo_image_full.height); // this frees the original image.data
@@ -140,7 +187,7 @@ int main() {
     Image color_image = ImageFromImage(color_image_full, crop); // mallocs new image, retains original
 
     //Texture2D texture = LoadTextureFromImage(topo_image); // TODO add key press toggle
-    Texture2D texture = LoadTextureFromImage(color_image);
+    Texture2D texture = LoadTextureFromImage(color_image); // Convert image to texture (VRAM)
 
     Model grid_model = LoadModelFromMesh(mesh);
     grid_model.materials[0].maps[MATERIAL_MAP_DIFFUSE].color = LIME;
@@ -155,8 +202,7 @@ int main() {
 
     SetTargetFPS(60);
 
-    int cameraMode = CAMERA_FREE;
-    if (cameraMode == CAMERA_FREE) DisableCursor();
+    DisableCursor();
 
     bool showFloor = false;
     bool showGrid = false;
@@ -200,6 +246,19 @@ int main() {
                 DrawRectangleLines(screenWidth - texture.width - 20, 20, texture.width, texture.height, GREEN);
             }
 
+            // Draw info boxes
+            DrawRectangle(5, 5, 330, 100, Fade(SKYBLUE, 0.5f));
+            DrawRectangleLines(5, 5, 330, 100, BLUE);
+
+            DrawRectangle(600, 5, 195, 100, Fade(SKYBLUE, 0.5f));
+            DrawRectangleLines(600, 5, 195, 100, BLUE);
+
+            DrawText("Camera status:", 610, 15, 10, BLACK);
+            DrawText(TextFormat("- Position: (%06.3f, %06.3f, %06.3f)", camera.position.x, camera.position.y, camera.position.z), 610, 30, 10, BLACK);
+            DrawText(TextFormat("- Target: (%06.3f, %06.3f, %06.3f)", camera.target.x, camera.target.y, camera.target.z), 610, 45, 10, BLACK);
+            DrawText(TextFormat("- Up: (%06.3f, %06.3f, %06.3f)", camera.up.x, camera.up.y, camera.up.z), 610, 60, 10, BLACK);
+
+
             DrawFPS(10, 10);
 
         EndDrawing();
@@ -216,7 +275,21 @@ int main() {
 }
 
 
-// TODO topo and color are handled differently wrt cropping.  topo is subregioned by my get_rect function.  that function doesn't work for color right now, so instead I'm using ImageFromImage.  but ImageFromImage makes a copy.  the end goal is to reuse the same cropped buffer, probably, so ImageFromImage isn't what I want.
-// TODO preprocess color image so it's already deflated and cropped.  right now it takes ~15 seconds during startup to do this.  note that nasa does provide .png, so could do that.  consider download speed/size tradeoff.
+// TODO topo and color are handled differently wrt cropping.  topo is subregioned by my get_rect function.  that function doesn't work for color right now, so instead I'm using ImageFromImage.  but ImageFromImage makes a copy.  the end goal is to reuse the same memory for the cropped image, so ImageFromImage isn't what I want.
+// TODO preprocess color image so it's already deflated and cropped.  right now it takes ~15 seconds during startup to do this.  note that nasa does provide .png, so could do that.  consider download speed/size tradeoff.  [update: loading uncompressed bmp (1.3 GB) still takes 10 seconds!]
 // TODO region selection - lat/lon vs which images are downloaded
+
+// TODO test image loading.  maybe chop them up.  stb_image can't load pngs larger than 1 GB, which the A1 world file is, when inflated.  but even so, the same image as bmp takes 10 seconds to load.  so not really something I want to do on startup.  considering it's a 21600x21600 image, and the actual current (sample) region is 310x162, I think there's some chopping up to be done.  note also that I need to resize it to 10800x10800 to match the topo map.  (which btw seems to load instantly...)  there are some notes in stb_image_write.h that make me suspicious of bmp, about saving as 3 component and then expanding to 4 component upon load.  at least that was my impression when I read it, but I definitely could be wrong.
+//   PNG creates output files with the same number of components as the input.
+//   The BMP format expands Y to RGB in the file format and does not
+//   output alpha.
+// there's also the fact that every row of pixels in bmp is 4-byte aligned (padded if not), which sounds like a great way to ruin your load speed.  the images I'm working with have 3 components only, according to 'n' after stbi_load.
+// libpng?
+// gpu format like ktx?  it's mainly just going to the gpu as a texture anyway...except if I want a minimap
+// btw read_entire_file only takes 1.3 seconds
+//
+// ... could also try some other formats.
+//   TGA?
+//   qoi?
+// saw a good idea to just save the loaded image data as binary/raw to disk.  would avoid the whole thing.  still might be nice to segment it though?
 
