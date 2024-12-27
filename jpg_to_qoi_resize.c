@@ -5,13 +5,13 @@
 
 #define STB_IMAGE_IMPLEMENTATION
 #define STBI_FAILURE_USERMSG
-#include <stb/stb_image.h>
+#include <stb_image.h>
 
 #define QOI_IMPLEMENTATION
 #include <qoi.h>
 
 #define STB_IMAGE_RESIZE_IMPLEMENTATION
-#include <stb/stb_image_resize2.h>
+#include <stb_image_resize2.h>
 
 #include "./replace_extension.h"
 

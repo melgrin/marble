@@ -3,7 +3,7 @@
 #include <assert.h>
 
 #define STB_IMAGE_WRITE_IMPLEMENTATION
-#include <stb/stb_image_write.h>
+#include <stb_image_write.h>
 
 #include "./raw_file.c"
 #include "./replace_extension.h"

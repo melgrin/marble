@@ -1,0 +1,44 @@
+=== tiff
+
+(not using libgeotiff, just libtiff.  needed to redefine a few tiff tag values that were in libgeotiff, but nothing else needed from that lib.)
+
+git clone https://gitlab.com/libtiff/libtiff (or wget source tar from https://download.osgeo.org/libtiff/)
+libtiff git tag v4.7.0
+cmake 3.31.3
+
+Windows MSVC:
+mkdir my_build
+cd my_build
+# cmake ..
+cmake .. -G "Visual Studio 15 2017 Win64" # on my laptop, it picks x86 by default, so needed to specify.  wonder if it does this on my desktop.  generally it doesn't, I think, but maybe has something to do with the project itself.  or, has something to do with my desktop's env.
+cmake --build . --config Release
+ctest -C Release
+cmake --build . --config Release --target install
+all 143 tests passed
+
+note: depending on how extensively I use libtiff, could maybe use/expand my standalone implementation in `a/tiff`
+
+this builds only dll.  .lib is the dll stub.  didn't try BUILD_SHARED_LIBS=OFF (or w/e their version is).  though would then need to deal with /MT /MD downstream, so maybe better not to.
+
+then for cl:
+set INCLUDE=%INCLUDE%:C:\Program Files\tiff\include
+
+
+===
+
+for raylib, download https://github.com/raysan5/raylib/releases/download/5.5/raylib-5.5_win64_msvc16.zip
+based on my comments in ../main.c, I may want to do a custom raylib build, partially to enable more types of image loading (though that might be interim?)
+
+===
+
+stb
+git clone https://github.com/nothings/stb
+header-only; no compile
+
+===
+
+qoi
+git clone https://github.com/phoboslab/qoi
+header-only; no compile
+not sure I'm using this in my latest dev anymore
+
