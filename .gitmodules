@@ -1,0 +1,3 @@
+[submodule "deps/libtiff/libtiff"]
+	path = deps/libtiff/libtiff
+	url = https://gitlab.com/libtiff/libtiff

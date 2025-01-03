@@ -1,28 +1,24 @@
+###
+
+two reasonable options here:
+option 1: check in the binaries.  raylib is ~8 MB, which kind of sucks.  but it's stable.  but also can't repro the binary, unless you have a separate source build, and if you do, then maybe just build it from that?  but might be nice if the library's build uses tools I don't use in the main build, like cmake.
+option 2: compile with a script and install to a local directory.  needs the library's build tools available, or needs a hacked up build.
+
+###
+
+cl -I deps/include -link -libpath:deps/lib
+
+###
+
+
 === tiff
 
 (not using libgeotiff, just libtiff.  needed to redefine a few tiff tag values that were in libgeotiff, but nothing else needed from that lib.)
 
 git clone https://gitlab.com/libtiff/libtiff (or wget source tar from https://download.osgeo.org/libtiff/)
 libtiff git tag v4.7.0
-cmake 3.31.3
 
-Windows MSVC:
-mkdir my_build
-cd my_build
-# cmake ..
-cmake .. -G "Visual Studio 15 2017 Win64" # on my laptop, it picks x86 by default, so needed to specify.  wonder if it does this on my desktop.  generally it doesn't, I think, but maybe has something to do with the project itself.  or, has something to do with my desktop's env.
-cmake --build . --config Release
-ctest -C Release
-cmake --build . --config Release --target install
-all 143 tests passed
-
-note: depending on how extensively I use libtiff, could maybe use/expand my standalone implementation in `a/tiff`
-
-this builds only dll.  .lib is the dll stub.  didn't try BUILD_SHARED_LIBS=OFF (or w/e their version is).  though would then need to deal with /MT /MD downstream, so maybe better not to.
-
-then for cl:
-set INCLUDE=%INCLUDE%:C:\Program Files\tiff\include
-
+I'm mainly using libtiff instead of a custom implementation because I couldn't figure out the TIFF LZW decompression algorithm.  (The NASA topography images like gebco_08_rev_elev_A1_grey_geo.tif are LZW compressed).
 
 ===
 
@@ -40,5 +36,5 @@ header-only; no compile
 qoi
 git clone https://github.com/phoboslab/qoi
 header-only; no compile
-not sure I'm using this in my latest dev anymore
+mainly just using this for testing different image format sizes vs load times; may not use it long term
 
