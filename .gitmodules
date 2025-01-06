@@ -1,5 +1,5 @@
-[submodule "deps/libtiff/libtiff"]
-	path = deps/libtiff/libtiff
+[submodule "deps/libtiff"]
+	path = deps/libtiff
 	url = https://gitlab.com/libtiff/libtiff
 [submodule "deps/stb"]
 	path = deps/stb
@@ -7,3 +7,6 @@
 [submodule "deps/qoi"]
 	path = deps/qoi
 	url = https://github.com/phoboslab/qoi
+[submodule "deps/raylib"]
+	path = deps/raylib
+	url = https://github.com/raysan5/raylib

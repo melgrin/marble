@@ -2,16 +2,17 @@
 @if not exist build\bin mkdir build\bin
 @if not exist build\obj mkdir build\obj
 
-@set libs=gdi32.lib msvcrt.lib raylibdll.lib winmm.lib
+:: raylib.lib needs to come before user32.lib, otherwise there's a symbol clash with "CloseWindow".
+@set libs=deps/build/raylib.lib deps/build/libtiff.lib gdi32.lib msvcrt.lib winmm.lib user32.lib shell32.lib
 cl -nologo -W2 -Z7 -Fe:build/bin/ -Fo:build/obj/ ^
  -I deps/stb ^
  -I deps/qoi ^
- -I deps/libtiff ^
- -I deps/libtiff/libtiff/libtiff ^
+ -I deps/raylib/src ^
+ -I deps/libtiff_config ^
+ -I deps/libtiff/libtiff ^
  %* ^
  %libs% ^
  main.c ^
- deps/libtiff/build/*.obj ^
  -link -NODEFAULTLIB:libcmt
 
 @if %errorlevel% neq 0 exit /b %errorlevel%
