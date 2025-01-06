@@ -130,12 +130,16 @@ bool raw_read(const char* filename, u8** pdata, RawImageInfo* pinfo) {
     if (info.channels > 4) goto end;
 
     if (rem != info.width * info.height * info.channels) goto end;
-    data = pos;
 
     res = true;
 end:
-    if (res && pdata) *pdata = data;
-    else free(data);
+    if (res && pdata) {
+        u64 n = len - (pos - data);
+        u8* contents = malloc(n); // this is so I can keep using read_entire_file, which is not a very good fit here, clearly.  (need to pass a free-able pointer to caller; can't pass pointer bumped by RawImageInfo size)
+        memcpy(contents, pos, n);
+        *pdata = contents;
+    }
+    free(data);
 
     if (pinfo) *pinfo = info;
 

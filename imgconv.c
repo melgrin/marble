@@ -158,7 +158,7 @@ bool write_image(const char* filename, u8* data, const u32 w, const u32 h, const
         }
     } else if (streqi(ext, "qoi")) {
         if (h >= QOI_PIXELS_MAX / w) { // common failure case for this project because we're dealing with large images.  qoi checks this internally, but it's indistinguishable from other errors at the API level.
-            printf("qoi does not support files larger than 400 million pixels.  wanted %u pixels (%ux%u).\n", w * h, w, h);
+            printf("qoi does not support files larger than %d pixels.  wanted %u pixels (%ux%u).\n", QOI_PIXELS_MAX, w * h, w, h);
             goto end;
         }
         const qoi_desc desc = { .width = w, .height = h, .channels = channels, .colorspace = QOI_SRGB };
@@ -173,6 +173,10 @@ bool write_image(const char* filename, u8* data, const u32 w, const u32 h, const
     } else if (streqi(ext, "jpg")) {
         const int quality = 80; // 1..100
         if (!stbi_write_jpg(filename, w, h, channels, data, quality)) {
+            goto end;
+        }
+    } else if (streqi(ext, "bmp")) {
+        if (!stbi_write_bmp(filename, w, h, channels, data)) {
             goto end;
         }
     } else {
@@ -272,4 +276,5 @@ int main(int argc, char** argv) {
 }
 
 // TODO: check that output is a supported file extension before loading input, because images are large and take a while to load, only to find out that you were doomed the whole time.
+// TODO: option for output file name
 
