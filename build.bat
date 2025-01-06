@@ -13,6 +13,8 @@ cl -nologo -Z7 /Fe:build/bin/ /Fo:build/obj/ stbi_to_raw.c
 cl -nologo -Z7 /Fe:build/bin/ /Fo:build/obj/ raw_to_png.c
 cl -nologo -Z7 /Fe:build/bin/ /Fo:build/obj/ jpg_to_png.c
 
+cl -nologo -Z7 /Fe:build/bin/ /Fo:build/obj/ imgconv.c
+
 @if %errorlevel% neq 0 exit /b %errorlevel%
 
 @if not exist local\world.200405.3x21600x21600.A1.raw (

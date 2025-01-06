@@ -171,8 +171,10 @@ int main() {
     //Image color_image_full = load_image("local/world.200405.3x21600x21600.A1.png"); // stbi_load fails with error "Image too large to decode".  looks like it can only load PNGs with decompressed would-be size of ~1 GB or less.
     //Image color_image_full = load_image("local/world.200405.3x21600x21600.A1.raw"); // this is actually 10800x10800
     //Image color_image_full = load_image("local/world.200405.3x21600x21600.A1.resized.png"); // this is actually 10800x10800
-    Image color_image_full = load_image("local/world.200405.3x21600x21600.A1.resized.qoi"); // this is actually 10800x10800
-    assert(color_image_full.width == topo_image_full.width); // XXX
+    //Image color_image_full = load_image("local/world.200405.3x21600x21600.A1.resized.qoi"); // this is actually 10800x10800
+    //Image color_image_full = load_image("local/world.200405.3x21600x21600.A1.2.qoi"); // this is actually 10800x10800
+    Image color_image_full = load_image("local/test/world.200405.3x21600x21600.A1.raw"); // this is actually 10800x10800
+    assert(color_image_full.width == topo_image_full.width); // XXX resize if not?  but takes a while to resize, and can prep during build
     if (color_image_full.width != topo_image_full.width ||
         color_image_full.height != topo_image_full.height) {
         ImageResize(&color_image_full, topo_image_full.width, topo_image_full.height); // this frees the original image.data

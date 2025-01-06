@@ -25,8 +25,8 @@ int64_t options_load(const int argc, const char** argv, const int options_count,
     for (int i = 0; i < argc; ++i) {
         for (int j = 0; j < options_count; ++j) {
             struct option* opt = &options[j];
-            if (0 == strcmp(argv[i], opt->short_name) ||
-                0 == strcmp(argv[i], opt->long_name)) {
+            if ((opt->short_name && 0 == strcmp(argv[i], opt->short_name)) ||
+                (opt->long_name && 0 == strcmp(argv[i], opt->long_name))) {
                 if (opt->type == OPT_FLAG) {
                     *(bool*)opt->value = true;
                     loaded_mask |= 1 << i;
@@ -38,7 +38,7 @@ int64_t options_load(const int argc, const char** argv, const int options_count,
                     loaded_mask |= 1 << i;
                     i += 1;
                     const char* arg = argv[i];
-                    const char* end;
+                    char* end;
                     errno = 0;
                     assert(opt->type == OPT_UINT32); // TODO
                     unsigned long int value = strtoul(arg, &end, 10);
@@ -53,6 +53,11 @@ int64_t options_load(const int argc, const char** argv, const int options_count,
     }
 
     return loaded_mask;
+}
+
+bool options_index_was_loaded(int64_t i, int64_t loaded_mask) {
+    if (i >= 64) return false;
+    return (loaded_mask & (((int64_t) 1) << i));
 }
 
 // TODO
