@@ -72,7 +72,7 @@ lib -nologo -out:./build/libtiff.lib ^
 
 :::: raylib
 
-cl -nologo -c -Fo:./build/ -I ./raylib/src/ -DPLATFORM_DESKTOP=1 ./raylib/src/rcore.c
+cl -nologo -c -Fo:./build/ -I ./raylib/src/ -I ./raylib/src/external/glfw/include -DPLATFORM_DESKTOP=1 ./raylib/src/rcore.c
 cl -nologo -c -Fo:./build/ -I ./raylib/src/ ./raylib/src/rshapes.c ./raylib/src/rtextures.c ./raylib/src/rtext.c ./raylib/src/rmodels.c ./raylib/src/utils.c ./raylib/src/rglfw.c
 @if %errorlevel% neq 0 exit /b %errorlevel%
 
