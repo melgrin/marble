@@ -9,18 +9,24 @@ cl -nologo -W2 -Z7 /Fe:build/bin/ /Fo:build/obj/ %* %libs% main.c -link -NODEFAU
 
 @if %errorlevel% neq 0 exit /b %errorlevel%
 
-cl -nologo -Z7 /Fe:build/bin/ /Fo:build/obj/ stbi_to_raw.c
-cl -nologo -Z7 /Fe:build/bin/ /Fo:build/obj/ raw_to_png.c
-cl -nologo -Z7 /Fe:build/bin/ /Fo:build/obj/ jpg_to_png.c
+:: cl -nologo -Z7 /Fe:build/bin/ /Fo:build/obj/ stbi_to_raw.c
+:: cl -nologo -Z7 /Fe:build/bin/ /Fo:build/obj/ raw_to_png.c
+:: cl -nologo -Z7 /Fe:build/bin/ /Fo:build/obj/ jpg_to_png.c
 
 cl -nologo -Z7 /Fe:build/bin/ /Fo:build/obj/ imgconv.c
 
 @if %errorlevel% neq 0 exit /b %errorlevel%
 
-@if not exist local\world.200405.3x21600x21600.A1.raw (
-    pushd local
-    ..\build\bin\stbi_to_raw.exe world.200405.3x21600x21600.A1.jpg
-    popd
+@echo off
+if not exist local mkdir local
+pushd local
+if not exist world.200405.3x10800x10800.A1.raw (
+    if not exist world.200405.3x21600x21600.A1.jpg (
+        curl -f -O https://eoimages.gsfc.nasa.gov/images/imagerecords/74000/74042/world.200405.3x21600x21600.A1.jpg
+    )
+    ..\build\bin\imgconv.exe raw world.200405.3x21600x21600.A1.jpg --width 10800 --height 10800
+    move world.200405.3x21600x21600.A1.raw world.200405.3x10800x10800.A1.raw
 )
+popd
 
 @if %errorlevel% neq 0 exit /b %errorlevel%
