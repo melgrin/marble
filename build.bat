@@ -9,10 +9,6 @@ cl -nologo -W2 -Z7 /Fe:build/bin/ /Fo:build/obj/ %* %libs% main.c -link -NODEFAU
 
 @if %errorlevel% neq 0 exit /b %errorlevel%
 
-:: cl -nologo -Z7 /Fe:build/bin/ /Fo:build/obj/ stbi_to_raw.c
-:: cl -nologo -Z7 /Fe:build/bin/ /Fo:build/obj/ raw_to_png.c
-:: cl -nologo -Z7 /Fe:build/bin/ /Fo:build/obj/ jpg_to_png.c
-
 cl -nologo -Z7 /Fe:build/bin/ /Fo:build/obj/ imgconv.c
 
 @if %errorlevel% neq 0 exit /b %errorlevel%
