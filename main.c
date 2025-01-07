@@ -15,25 +15,24 @@
     b = tmp; \
 } while(0);
 
-// raylib has `Image ImageFromImage(Image image, Rectangle rec)` and `void ImageCrop(Image* image, Rectangle crop)`, either of which I could probably use instead of this, except that they make copies of the src data instead of views/slices
-static u8* get_rect(const u8* src, u32 wsrc, u32 hsrc, u32 x0, u32 y0, u32 x1, u32 y1) {
+static u8* get_rect_n(const u8* src, u32 wsrc, u32 hsrc, u32 nsrc, u32 x0, u32 y0, u32 x1, u32 y1) {
     if (x0 > x1) swap(u32, x0, x1);
     if (y0 > y1) swap(u32, y0, y1);
 
     u32 w = x1 - x0;
     u32 h = y1 - y0;
-    u8* mem = malloc(w * h);
+    u8* mem = malloc(w * h * nsrc);
     assert(mem);
     u8* dst = mem;
-    src += x0;
-    src += wsrc * y0;
+    src += x0 * nsrc;
+    src += wsrc * y0 * nsrc;
     u32 row;
     for (row = y0; row < y1 && row < hsrc; ++row) {
-        memcpy(dst, src, w);
-        dst += w;
-        src += wsrc;
+        memcpy(dst, src, w * nsrc);
+        dst += w * nsrc;
+        src += wsrc * nsrc;
     }
-    printf("get_rect: x: %u-%u (w = %u), y: %u-%u (h = %u)\n", x0, x1, w, y0, y1, h);
+    printf("get_rect_n: x: %u-%u (w = %u), y: %u-%u (h = %u)\n", x0, x1, w, y0, y1, h);
     printf("row = %u, y1 = %u, hsrc = %u\n", row, y1, hsrc);
     return mem;
 }
@@ -112,8 +111,8 @@ static Image load_image(const char* filename) {
     return image;
 }
 
-//#define STB_IMAGE_WRITE_IMPLEMENTATION
-//#include <stb/stb_image_write.h>
+////#define STB_IMAGE_WRITE_IMPLEMENTATION
+//#include <stb_image_write.h>
 
 int main() {
 
@@ -139,10 +138,9 @@ int main() {
     if (!geotiff_read(filename, &topo_image_full)) return 1;
     Point2i tl = geotiff_lat_lon_to_pixel(48.106075, -123.495817, topo_image_full.geo);
     Point2i br = geotiff_lat_lon_to_pixel(46.757553, -120.915573, topo_image_full.geo);
-    u8* region = get_rect(topo_image_full.data, topo_image_full.width, topo_image_full.height, tl.x, tl.y, br.x, br.y);
+    u8* region = get_rect_n(topo_image_full.data, topo_image_full.width, topo_image_full.height, topo_image_full.bytes_per_pixel, tl.x, tl.y, br.x, br.y);
     const int imgw = abs(br.x - tl.x);
     const int imgh = abs(br.y - tl.y);
-    //if (!stbi_write_bmp("tmp.bmp", imgw, imgh, 1, region)) { printf("failed to write bmp\n"); }
 
     PixelFormat format;
     if (topo_image_full.bytes_per_pixel == 1) format = PIXELFORMAT_UNCOMPRESSED_GRAYSCALE;
@@ -173,17 +171,26 @@ int main() {
         printf("Image size mismatch: color image is %ux%x, topo image is %ux%u.\n", color_image_full.width, color_image_full.height, topo_image_full.width, topo_image_full.height);
         exit(1);
     }
-    Rectangle crop = {
-        .x = (float) tl.x,
-        .y = (float) tl.y,
-        .width  = (float) abs(br.x - tl.x),
-        .height = (float) abs(br.y - tl.y),
+    if (color_image_full.format != PIXELFORMAT_UNCOMPRESSED_R8G8B8) { // hand off to myself on this one... maybe raylib Image isn't the best format to store these in
+        printf("Unexpected image format %d.  Expected %d (PIXELFORMAT_UNCOMPRESSED_R8G8B8).\n", color_image_full.format, PIXELFORMAT_UNCOMPRESSED_R8G8B8);
+        exit(1);
+    }
+    const int color_image_num_components = 3;
+
+    int crop_w = abs(br.x - tl.x);
+    int crop_h = abs(br.y - tl.y);
+    u8* color_region = get_rect_n(color_image_full.data, color_image_full.width, color_image_full.height, color_image_num_components, tl.x, tl.y, br.x, br.y);
+    //stbi_write_bmp("out.bmp", crop_w, crop_h, color_image_num_components, color_region);
+    Image color_image_v2 = {
+        .data = color_region,
+        .width = crop_w,
+        .height = crop_h,
+        .mipmaps = 1, // default, according to struct definition
+        .format = color_image_full.format,
     };
-    //ImageCrop(&color_image, crop); // this frees the original image.data
-    Image color_image = ImageFromImage(color_image_full, crop); // mallocs new image, retains original
 
     //Texture2D texture = LoadTextureFromImage(topo_image); // TODO add key press toggle
-    Texture2D texture = LoadTextureFromImage(color_image); // Convert image to texture (VRAM)
+    Texture2D texture = LoadTextureFromImage(color_image_v2); // Convert image to texture (VRAM)
 
     Model grid_model = LoadModelFromMesh(mesh);
     grid_model.materials[0].maps[MATERIAL_MAP_DIFFUSE].color = LIME;
@@ -272,20 +279,5 @@ int main() {
 
 
 // TODO topo and color are handled differently wrt cropping.  topo is subregioned by my get_rect function.  that function doesn't work for color right now, so instead I'm using ImageFromImage.  but ImageFromImage makes a copy.  the end goal is to reuse the same memory for the cropped image, so ImageFromImage isn't what I want.
-// TODO preprocess color image so it's already deflated and cropped.  right now it takes ~15 seconds during startup to do this.  note that nasa does provide .png, so could do that.  consider download speed/size tradeoff.  [update: loading uncompressed bmp (1.3 GB) still takes 10 seconds!]
 // TODO region selection - lat/lon vs which images are downloaded
-
-// TODO test image loading.  maybe chop them up.  stb_image can't load pngs larger than 1 GB, which the A1 world file is, when inflated.  but even so, the same image as bmp takes 10 seconds to load.  so not really something I want to do on startup.  considering it's a 21600x21600 image, and the actual current (sample) region is 310x162, I think there's some chopping up to be done.  note also that I need to resize it to 10800x10800 to match the topo map.  (which btw seems to load instantly...)  there are some notes in stb_image_write.h that make me suspicious of bmp, about saving as 3 component and then expanding to 4 component upon load.  at least that was my impression when I read it, but I definitely could be wrong.
-//   PNG creates output files with the same number of components as the input.
-//   The BMP format expands Y to RGB in the file format and does not
-//   output alpha.
-// there's also the fact that every row of pixels in bmp is 4-byte aligned (padded if not), which sounds like a great way to ruin your load speed.  the images I'm working with have 3 components only, according to 'n' after stbi_load.
-// libpng?
-// gpu format like ktx?  it's mainly just going to the gpu as a texture anyway...except if I want a minimap
-// btw read_entire_file only takes 1.3 seconds
-//
-// ... could also try some other formats.
-//   TGA?
-//   qoi?
-// saw a good idea to just save the loaded image data as binary/raw to disk.  would avoid the whole thing.  still might be nice to segment it though?
 
