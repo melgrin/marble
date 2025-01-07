@@ -1,14 +1,25 @@
 #include "./geotiff.h"
 #include "./typedefs.h"
 #include <stdint.h>
-#include <geotiff/xtiffio.h>  // for TIFF
+//#include <geotiff/xtiffio.h>  // for TIFF
 //#include <geotiff/geotiffio.h> // for GeoTIFF
+#include <tiffio.h>
+
+// from libgeotiff/libxtiff/xtiffio.h
+#define TIFFTAG_GEOPIXELSCALE       33550
+#define TIFFTAG_GEOTIEPOINTS        33922
+//#define TIFFTAG_GEOTRANSMATRIX      34264
+//#define TIFFTAG_GEOKEYDIRECTORY     34735
+//#define TIFFTAG_GEODOUBLEPARAMS     34736
+//#define TIFFTAG_GEOASCIIPARAMS      34737
 
 static bool _read_field_value(TIFF* tif,  const TIFFField* field, uint32_t* count_out, void** data_out) {
     const uint32_t tag = TIFFFieldTag(field);
     if (TIFFFieldPassCount(field)) {
         int count_size = TIFFFieldSetGetCountSize(field);
         assert(count_size > 0);
+        // version issue?  using 4.7 on my laptop and it has count_size 4 for u32, and that's what the docs say too.  so where did 1 -> 16, 2 -> 32 come from (and how did it pass on the same file?  using the gebco tif from blue marble)
+#if nocheckin_orig_desktop
         if (count_size == 1) {
             uint16_t count;
             if (0 == TIFFGetField(tif, tag, &count, data_out)) return false;
@@ -21,6 +32,20 @@ static bool _read_field_value(TIFF* tif,  const TIFFField* field, uint32_t* coun
             assert(0);
             return false;
         }
+#else
+        if (count_size == 2) {
+            uint16_t count;
+            if (0 == TIFFGetField(tif, tag, &count, data_out)) return false;
+            *count_out = (uint32_t) count;
+        } else if (count_size == 4) {
+            uint32_t count;
+            if (0 == TIFFGetField(tif, tag, &count, data_out)) return false;
+            *count_out = count;
+        } else {
+            assert(0);
+            return false;
+        }
+#endif
     } else {
         //int c = TIFFFieldReadCount(field);
         //assert(c >= 0);
@@ -116,7 +141,7 @@ bool geotiff_read(const char* filename, GeoTIFFData* img) {
     bool ret;
 
     //printf("geo_to_pixel: lon %f -> x %ld, lat %f -> y %ld\n", lon, xi, lat, yi);
-    TIFF* tif = XTIFFOpen(filename,"r");
+    TIFF* tif = TIFFOpen(filename,"r");
     if (!tif) {
         printf("Failed to open %s\n", filename);
         ret = false;
@@ -163,7 +188,7 @@ bool geotiff_read(const char* filename, GeoTIFFData* img) {
 end:
     //if (scanlines) free(scanlines);
     //if (gtif) GTIFFree(gtif);
-    if (tif) XTIFFClose(tif);
+    if (tif) TIFFClose(tif);
     return ret;
 }
 

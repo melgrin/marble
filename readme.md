@@ -1,3 +1,10 @@
+## Overview
+
+Low-fidelity topographical 3D earth surface viewer
+
+
+## Image Loading scratch notes
+
 There's two images, topo and color.
 Both are cropped to be the Seattle region.
 Topo is used to make a heightmap.
@@ -13,12 +20,34 @@ load info
 | .png   | 4.75 seconds |     76 KB |
 | .qoi   | 0.85 seconds |     55 KB |
 
+
+## References
+
 - [NASA Blue Marble](https://visibleearth.nasa.gov/collection/1484/blue-marble)
 - [raylib](https://github.com/raysan5/raylib), particularly `raylib/examples/models/models_heightmap.c`
 - [stb](https://github.com/nothings/stb)
 - [qoi](https://github.com/phoboslab/qoi)
 
-todo:
+
+## Building
+
+First build:
+```
+git submodule update --init
+vcvarsall x64
+cd deps
+build.bat
+cd ..
+build.bat
+```
+
+Subsequent builds:
+```
+build.bat
+```
+
+
+## TODO
 - single image grid region (A1, C2, etc)
   - streaming
 - handling for all image grids

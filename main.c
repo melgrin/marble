@@ -38,16 +38,16 @@ static u8* get_rect(const u8* src, u32 wsrc, u32 hsrc, u32 x0, u32 y0, u32 x1, u
     return mem;
 }
 
-#include <raylib/raylib.h>
+#include <raylib.h>
 
 
 #include "./raw_file.c"
 
-#define STB_IMAGE_IMPLEMENTATION
-#define STBI_FAILURE_USERMSG
-#include <stb/stb_image.h>
-// by default, raylib copmiles-out its ability to load jpg images.  there is no way to check if the version of raylib you're using has it enabled or not, because it's via source file preprocessor macros (see rtextures.c, SUPPORT_FILEFORMAT_JPG).  there is no way to change this without rebuilding all of raylib.  since I don't want to blindly use a custom raylib build, and I don't want to build raylib from source in the first place, this circumvents that part of raylib.  [will probably reconsider the not-from-source decision in the future, because I'm currently planning to use rlImGui+dear-imgui which are both source-only libraries.  so might as well go full submodule on all the dependencies.]
-#define QOI_IMPLEMENTATION
+//#define STB_IMAGE_IMPLEMENTATION // raylib includes this
+//#define STBI_FAILURE_USERMSG
+#include <stb_image.h>
+// by default, raylib compiles-out its ability to load jpg images.  there is no way to check if the version of raylib you're using has it enabled or not, because it's via source file preprocessor macros (see rtextures.c, SUPPORT_FILEFORMAT_JPG).  there is no way to change this without rebuilding all of raylib.  since I don't want to blindly use a custom raylib build, and I don't want to build raylib from source in the first place, this circumvents that part of raylib.  [will probably reconsider the not-from-source decision in the future, because I'm currently planning to use rlImGui+dear-imgui which are both source-only libraries.  so might as well go full submodule on all the dependencies.]
+//#define QOI_IMPLEMENTATION // raylib includes this
 #include <qoi.h>
 static Image load_image(const char* filename) {
     double t0 = GetTime();
