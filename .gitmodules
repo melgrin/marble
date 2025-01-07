@@ -10,5 +10,3 @@
 [submodule "deps/raylib"]
 	path = deps/raylib
 	url = https://github.com/raysan5/raylib
-	branch = 5.0
-	shallow = true
