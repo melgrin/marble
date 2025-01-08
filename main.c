@@ -117,6 +117,11 @@ static Image load_image(const char* filename) {
 ////#define STB_IMAGE_WRITE_IMPLEMENTATION
 //#include <stb_image_write.h>
 
+typedef struct Vec2i { int x; int y; } Vec2i;
+typedef struct Rect { int x; int y; int w; int h; } Rect;
+
+#define Vec2Unpack(vec) vec.x, vec.y
+
 int main() {
 
     const int screenWidth = 800;
@@ -228,6 +233,25 @@ int main() {
     const Vector3 rotationAxis = { 0.0f, 1.0f, 0.0f };
     Vector3 vScale = { 1.0f, 0.2f, 1.0f }; // XXX 0.2 is to scale down the vertical in the Seattle region heightmap I'm using.  There's probably a definition of what the scaling should be somewhere and/or I need to think about it more.  (The scaling is initially controlled by the 'size' Vector3 passed to GenMeshHeightmap)
 
+    const int x0 = 590;
+    const int y0 = 15;
+    const int text_height = 10;
+    int x = x0;
+    int y = y0;
+
+    Vec2i camera_status_title_text_position = {x, y}; y += text_height;
+    Vec2i camera_status_position_text_position = {x, y}; y += text_height;
+    Vec2i camera_status_target_text_position = {x, y}; y += text_height;
+    Vec2i camera_status_up_text_position = {x, y}; y += text_height;
+    y += text_height;
+    Vec2i current_lat_text_position = {x, y}; y += text_height;
+    Vec2i current_lon_text_position = {x, y}; y += text_height;
+
+    int end_x = screenWidth - 5;
+    int start_x = x0 - 10;
+    int w = end_x - start_x;
+    Rect border = {.x = x0 - 10, .y = y0 - 10, .w = w, .h = y};
+
     // Main game loop
     while (!WindowShouldClose()) {
 
@@ -260,21 +284,38 @@ int main() {
                 DrawRectangleLines(screenWidth - texture.width - 20, 20, texture.width, texture.height, GREEN);
             }
 
-            // Draw info boxes
-            DrawRectangle(5, 5, 330, 100, Fade(SKYBLUE, 0.5f));
-            DrawRectangleLines(5, 5, 330, 100, BLUE);
 
-            DrawRectangle(600, 5, 195, 100, Fade(SKYBLUE, 0.5f));
-            DrawRectangleLines(600, 5, 195, 100, BLUE);
+            {
+                DrawRectangle     (border.x, border.y, border.w, border.h, Fade(WHITE, 0.8f));
+                DrawRectangleLines(border.x, border.y, border.w, border.h, BLACK);
 
-            DrawText("Camera status:", 610, 15, 10, BLACK);
-            DrawText(TextFormat("- Position: (%06.3f, %06.3f, %06.3f)", camera.position.x, camera.position.y, camera.position.z), 610, 30, 10, BLACK);
-            DrawText(TextFormat("- Target: (%06.3f, %06.3f, %06.3f)", camera.target.x, camera.target.y, camera.target.z), 610, 45, 10, BLACK);
-            DrawText(TextFormat("- Up: (%06.3f, %06.3f, %06.3f)", camera.up.x, camera.up.y, camera.up.z), 610, 60, 10, BLACK);
-            DrawText(TextFormat("tl lat/lon: %0.6f, %0.6f", tl_lat, tl_lon), 610, 85, 10, BLACK);
-            DrawText(TextFormat("br lat/lon: %0.6f, %0.6f", br_lat, br_lon), 610, 100, 10, BLACK);
-            LatLon current = geotiff_pixel_to_lat_lon(camera.position.x, camera.position.z, topo_image_full.geo);
-            DrawText(TextFormat("current lat/lon: %0.6f, %0.6f", current.lat, current.lon), 610, 115, 10, BLACK);
+                DrawText("Camera status:",
+                    Vec2Unpack(camera_status_title_text_position),
+                    text_height,
+                    BLACK);
+                DrawText(TextFormat("- Position: (%6.3f, %6.3f, %6.3f)", camera.position.x, camera.position.y, camera.position.z),
+                    Vec2Unpack(camera_status_position_text_position),
+                    text_height,
+                    BLACK);
+                DrawText(TextFormat("- Target: (%6.3f, %6.3f, %6.3f)", camera.target.x, camera.target.y, camera.target.z),
+                    Vec2Unpack(camera_status_target_text_position),
+                    text_height,
+                    BLACK);
+                DrawText(TextFormat("- Up: (%6.3f, %6.3f, %6.3f)", camera.up.x, camera.up.y, camera.up.z),
+                    Vec2Unpack(camera_status_up_text_position),
+                    text_height,
+                    BLACK);
+
+                LatLon current = geotiff_pixel_to_lat_lon(camera.position.x, camera.position.z, topo_image_full.geo);
+                DrawText(TextFormat("Current Latitude: %0.6f", current.lat),
+                    Vec2Unpack(current_lat_text_position),
+                    text_height,
+                    BLACK);
+                DrawText(TextFormat("Current Longitude: %0.6f", current.lon),
+                    Vec2Unpack(current_lon_text_position),
+                    text_height,
+                    BLACK);
+            }
 
 
             DrawFPS(10, 10);
