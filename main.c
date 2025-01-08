@@ -126,21 +126,34 @@ int main() {
     InitWindow(screenWidth, screenHeight, "marble");
     printf("%.3f seconds for InitWindow\n", GetTime() - t0);
 
-    Camera camera = { 0 };
-    camera.position = (Vector3){ 18.0f, 8.0f, 18.0f };      // Camera position
-    camera.target = (Vector3){ 0.0f, 0.0f, 0.0f };          // Camera looking at point
-    camera.up = (Vector3){ 0.0f, 1.0f, 0.0f };              // Camera up vector (rotation towards target)
-    camera.fovy = 45.0f;                                    // Camera field-of-view Y
-    camera.projection = CAMERA_PERSPECTIVE;                 // Camera projection type
-
 
     const char* filename = "local/gebco_08_rev_elev_A1_grey_geo.tif";
     GeoTIFFData topo_image_full;
     if (!geotiff_read(filename, &topo_image_full)) return 1;
-    Point2i tl = geotiff_lat_lon_to_pixel(48.106075, -123.495817, topo_image_full.geo);
-    Point2i br = geotiff_lat_lon_to_pixel(46.757553, -120.915573, topo_image_full.geo);
+    const double tl_lat = 48.106075;
+    const double tl_lon = -123.495817;
+    const double br_lat = 46.757553;
+    const double br_lon = -120.915573;
+    Point2i tl = geotiff_lat_lon_to_pixel(tl_lat, tl_lon, topo_image_full.geo);
+    Point2i br = geotiff_lat_lon_to_pixel(br_lat, br_lon, topo_image_full.geo);
     const int imgw = abs(br.x - tl.x);
     const int imgh = abs(br.y - tl.y);
+
+
+    Camera camera = { 0 };
+    camera.position = (Vector3){ (float) tl.x, 8.0f /* @Elevation */, (float) tl.y };
+    camera.target = (Vector3){ (float) br.x, 8.0f /* @Elevation */, (float) br.y };
+    camera.up = (Vector3){ 0.0f, 1.0f, 0.0f };
+    camera.fovy = 45.0f;
+    camera.projection = CAMERA_PERSPECTIVE;
+
+    // UpdateCamera breaks if position == target
+    assert(!(
+        camera.position.x == camera.target.x &&
+        camera.position.y == camera.target.y &&
+        camera.position.z == camera.target.z));
+
+
     u8* topo_region = malloc(imgw * imgh * topo_image_full.bytes_per_pixel);
     get_rect_into_buffer(topo_region, topo_image_full.data, topo_image_full.width, topo_image_full.height, topo_image_full.bytes_per_pixel, tl.x, tl.y, br.x, br.y, imgw, imgh);
 
@@ -161,9 +174,9 @@ int main() {
 
 
     Mesh mesh = GenMeshHeightmap(topo_image, (Vector3) {
-        16 * ((float) topo_image.width / (float) topo_image.height),
-        8, // TODO topo image elevations are scaled 0-6400 meters, according to the description on https://visibleearth.nasa.gov/images/73934/topography, but this is just a hardcoded value for now instead
-        16 });
+        (float) imgw,
+        (float) imgh / 2, // TODO @Elevation - topo image elevations are scaled 0-6400 meters, according to the description on https://visibleearth.nasa.gov/images/73934/topography, but this is just a hardcoded value for now instead
+        (float) imgh });
     Model model = LoadModelFromMesh(mesh);
 
 
@@ -193,11 +206,12 @@ int main() {
     //Texture2D texture = LoadTextureFromImage(topo_image); // TODO add key press toggle
     Texture2D texture = LoadTextureFromImage(color_image); // Convert image to texture (VRAM)
 
+    model.materials[0].maps[MATERIAL_MAP_DIFFUSE].texture = texture; // Set map diffuse texture
+
+
     Model grid_model = LoadModelFromMesh(mesh);
     grid_model.materials[0].maps[MATERIAL_MAP_DIFFUSE].color = LIME;
 
-    model.materials[0].maps[MATERIAL_MAP_DIFFUSE].texture = texture; // Set map diffuse texture
-    Vector3 mapPosition = { 0.0f, 0.0f, 0.0f }; // Define model position
 
     SetTargetFPS(60);
 
@@ -209,6 +223,7 @@ int main() {
     bool drawSolid = true;
     bool showImage = false;
 
+    const Vector3 model_position = (Vector3){ (float) tl.x, 0.0f, (float) tl.y };
     const float rotationAngle = 0.0f;
     const Vector3 rotationAxis = { 0.0f, 1.0f, 0.0f };
     Vector3 vScale = { 1.0f, 0.2f, 1.0f }; // XXX 0.2 is to scale down the vertical in the Seattle region heightmap I'm using.  There's probably a definition of what the scaling should be somewhere and/or I need to think about it more.  (The scaling is initially controlled by the 'size' Vector3 passed to GenMeshHeightmap)
@@ -233,8 +248,8 @@ int main() {
 
                 if (showFloor) DrawPlane((Vector3){0,0,0}, (Vector2){20,20}, GRAY);
 
-                if (drawSolid) DrawModelEx(model, mapPosition, rotationAxis, rotationAngle, vScale, WHITE);
-                if (drawWires) DrawModelWiresEx(grid_model, mapPosition, rotationAxis, rotationAngle, vScale, WHITE);
+                if (drawSolid) DrawModelEx(model, model_position, rotationAxis, rotationAngle, vScale, WHITE);
+                if (drawWires) DrawModelWiresEx(grid_model, model_position, rotationAxis, rotationAngle, vScale, WHITE);
 
                 if (showGrid) DrawGrid(20, 1.0f);
 
@@ -256,6 +271,10 @@ int main() {
             DrawText(TextFormat("- Position: (%06.3f, %06.3f, %06.3f)", camera.position.x, camera.position.y, camera.position.z), 610, 30, 10, BLACK);
             DrawText(TextFormat("- Target: (%06.3f, %06.3f, %06.3f)", camera.target.x, camera.target.y, camera.target.z), 610, 45, 10, BLACK);
             DrawText(TextFormat("- Up: (%06.3f, %06.3f, %06.3f)", camera.up.x, camera.up.y, camera.up.z), 610, 60, 10, BLACK);
+            DrawText(TextFormat("tl lat/lon: %0.6f, %0.6f", tl_lat, tl_lon), 610, 85, 10, BLACK);
+            DrawText(TextFormat("br lat/lon: %0.6f, %0.6f", br_lat, br_lon), 610, 100, 10, BLACK);
+            LatLon current = geotiff_pixel_to_lat_lon(camera.position.x, camera.position.z, topo_image_full.geo);
+            DrawText(TextFormat("current lat/lon: %0.6f, %0.6f", current.lat, current.lon), 610, 115, 10, BLACK);
 
 
             DrawFPS(10, 10);

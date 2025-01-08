@@ -50,9 +50,15 @@ typedef struct {
     int y;
 } Point2i;
 
+typedef struct {
+    double lat;
+    double lon;
+} LatLon;
+
 bool geotiff_read(const char* filename, GeoTIFFData* img);
 void geotiff_free(GeoTIFFData img);
 Point2i geotiff_lat_lon_to_pixel(double lat, double lon, GeoTIFFMetadata geo);
+LatLon geotiff_pixel_to_lat_lon(double x, double y, GeoTIFFMetadata geo);
 
 
 

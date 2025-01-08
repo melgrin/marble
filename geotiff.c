@@ -134,6 +134,12 @@ Point2i geotiff_lat_lon_to_pixel(double lat, double lon, GeoTIFFMetadata geo) {
     return (Point2i){xi, yi};
 }
 
+LatLon geotiff_pixel_to_lat_lon(double x, double y, GeoTIFFMetadata geo) {
+    double lat = geo.tie_lat - (y * geo.scale_lat);
+    double lon = x * geo.scale_lon + geo.tie_lon;
+    return (LatLon){lat, lon};
+}
+
 #include <stdlib.h> // malloc
 
 
