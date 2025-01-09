@@ -122,6 +122,8 @@ typedef struct Rect { int x; int y; int w; int h; } Rect;
 
 #define Vec2Unpack(vec) vec.x, vec.y
 
+#include "./camera.c"
+
 int main() {
 
     const int screenWidth = 800;
@@ -252,10 +254,11 @@ int main() {
     int w = end_x - start_x;
     Rect border = {.x = x0 - 10, .y = y0 - 10, .w = w, .h = y};
 
-    // Main game loop
+
     while (!WindowShouldClose()) {
 
-        UpdateCamera(&camera, CAMERA_FREE);
+        UpdateCamera_custom(&camera, CAMERA_FREE);
+
         if (IsKeyPressed(KEY_F)) showFloor = !showFloor;
         if (IsKeyPressed(KEY_G)) showGrid = !showGrid;
         if (IsKeyDown(KEY_J)) vScale.y -= 0.1f * GetFrameTime();
@@ -335,4 +338,5 @@ int main() {
 
 
 // TODO region selection - lat/lon vs which images are downloaded
+// TODO toggle to topo image
 
