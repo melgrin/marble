@@ -210,10 +210,10 @@ int main() {
         .format = color_image_full.format,
     };
 
-    //Texture2D texture = LoadTextureFromImage(topo_image); // TODO add key press toggle
-    Texture2D texture = LoadTextureFromImage(color_image); // Convert image to texture (VRAM)
+    Texture2D topo_texture = LoadTextureFromImage(topo_image);
+    Texture2D color_texture = LoadTextureFromImage(color_image);
 
-    model.materials[0].maps[MATERIAL_MAP_DIFFUSE].texture = texture; // Set map diffuse texture
+    model.materials[0].maps[MATERIAL_MAP_DIFFUSE].texture = color_texture;
 
 
     Model grid_model = LoadModelFromMesh(mesh);
@@ -229,6 +229,7 @@ int main() {
     bool drawWires = false;
     bool drawSolid = true;
     bool showImage = false;
+    bool useTopo = false;
 
     const Vector3 model_position = (Vector3){ (float) tl.x, 0.0f, (float) tl.y };
     const float rotationAngle = 0.0f;
@@ -264,8 +265,12 @@ int main() {
         if (IsKeyDown(KEY_J)) vScale.y -= 0.1f * GetFrameTime();
         if (IsKeyDown(KEY_K)) vScale.y += 0.1f * GetFrameTime();
         if (IsKeyPressed(KEY_I)) showImage = !showImage;
+        if (IsKeyPressed(KEY_T)) useTopo = !useTopo;
         if (IsKeyPressed(KEY_ONE)) drawWires = !drawWires;
         if (IsKeyPressed(KEY_TWO)) drawSolid = !drawSolid;
+
+        Texture* texture = useTopo ? &topo_texture : &color_texture;
+        model.materials[0].maps[MATERIAL_MAP_DIFFUSE].texture = *texture;
 
         BeginDrawing();
 
@@ -283,8 +288,8 @@ int main() {
             EndMode3D();
 
             if (showImage) {
-                DrawTexture(texture, screenWidth - texture.width - 20, 20, WHITE);
-                DrawRectangleLines(screenWidth - texture.width - 20, 20, texture.width, texture.height, GREEN);
+                DrawTexture(*texture, screenWidth - texture->width - 20, 20, WHITE);
+                DrawRectangleLines(screenWidth - texture->width - 20, 20, texture->width, texture->height, GREEN);
             }
 
 
@@ -326,10 +331,11 @@ int main() {
         EndDrawing();
     }
 
-    UnloadTexture(texture);     // Unload texture
-    UnloadModel(model);         // Unload model
+    UnloadTexture(color_texture);
+    UnloadTexture(topo_texture);
+    UnloadModel(model);
 
-    CloseWindow();              // Close window and OpenGL context
+    CloseWindow();
 
     geotiff_free(topo_image_full);
 
@@ -338,5 +344,4 @@ int main() {
 
 
 // TODO region selection - lat/lon vs which images are downloaded
-// TODO toggle to topo image
 
