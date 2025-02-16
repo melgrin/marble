@@ -17,7 +17,13 @@ cl -nologo -W2 -Z7 -Fe:build/bin/ -Fo:build/obj/ ^
 
 @if %errorlevel% neq 0 exit /b %errorlevel%
 
-cl -nologo -Z7 /Fe:build/bin/ /Fo:build/obj/ -I deps/stb -I deps/qoi imgconv.c
+cl -nologo -Z7 /Fe:build/bin/ /Fo:build/obj/ ^
+ -I deps/stb ^
+ -I deps/qoi ^
+ -I deps/libtiff_config ^
+ -I deps/libtiff/libtiff ^
+ deps/build/libtiff.lib ^
+ imgconv.c
 
 @if %errorlevel% neq 0 exit /b %errorlevel%
 

@@ -35,7 +35,9 @@ cl -nologo -c -I ./libtiff_config/ /Fo:./build/ ^
  ./libtiff/libtiff/tif_dumpmode.c ^
  ./libtiff/libtiff/tif_predict.c ^
  ./libtiff/libtiff/tif_flush.c ^
- ./libtiff/libtiff/tif_dirwrite.c
+ ./libtiff/libtiff/tif_dirwrite.c ^
+ ./libtiff/libtiff/tif_getimage.c ^
+ ./libtiff/libtiff/tif_color.c
 @if %errorlevel% neq 0 exit /b %errorlevel%
 
 lib -nologo -out:./build/libtiff.lib ^
@@ -67,7 +69,9 @@ lib -nologo -out:./build/libtiff.lib ^
  ./build/tif_dumpmode.obj ^
  ./build/tif_predict.obj ^
  ./build/tif_flush.obj ^
- ./build/tif_dirwrite.obj
+ ./build/tif_dirwrite.obj ^
+ ./build/tif_getimage.obj ^
+ ./build/tif_color.obj
 @if %errorlevel% neq 0 exit /b %errorlevel%
 
 :::: raylib

@@ -28,13 +28,14 @@
 
 #include "replace_extension.h"
 #include "raw_file.c"
+#include "tiff_read.c"
 
 
 #ifdef _WIN32
 #include <windows.h>
 double get_time() {
     FILETIME ft;
-    GetSystemTimeAsFileTime(&ft); // using this instead of QueryPerformanceCounter so I don't need a one-time init of QueryPerformanceFrequency
+    GetSystemTimeAsFileTime(&ft); // using this instead of QueryPerformanceCounter so I don't need a one-time init of QueryPerformanceFrequency (it's probably less accurate though)
     ULARGE_INTEGER tmp = { .LowPart = ft.dwLowDateTime, .HighPart = ft.dwHighDateTime };
     double sec = tmp.QuadPart / 10000000.;
     return sec;
@@ -94,6 +95,11 @@ bool read_image(const char* filename, u8** pdata, u32* pwidth, u32* pheight, u32
         w = desc.width;
         h = desc.height;
         n = desc.channels;
+    } else if (streqi(ext, "tif")) {
+        if (!tiff_read(filename, &data, &w, &h, &n)) {
+            printf("failed to load %s\n", filename);
+            exit(1);
+        }
     } else {
         int x, y, comp;
         data = stbi_load(filename, &x, &y, &comp, 0);
