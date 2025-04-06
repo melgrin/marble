@@ -232,19 +232,27 @@ int main() {
     tiles_init(&tiles, tilew, tileh, _topo_full.n, _color_full.n, &logger);
 
     LatLon prev = {NAN, NAN};
+    bool ui_focused_prev = ui_focused;
     bool first_frame = true;
 
     while (!WindowShouldClose()) {
 
         if (IsKeyPressed(KEY_GRAVE)) { // "`" ("~")
             ui_focused = !ui_focused;
-            window_flags ^= ImGuiWindowFlags_NoInputs;
+        }
+        if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT) && !igGetIO()->WantCaptureMouse) {
+            ui_focused = false;
+        }
+
+        if (ui_focused != ui_focused_prev) {
             if (ui_focused) {
                 EnableCursor();
                 igSetWindowFocus_Str("my window");
+                window_flags &= ~ImGuiWindowFlags_NoInputs;
             } else {
                 DisableCursor();
                 igSetWindowFocus_Nil();
+                window_flags |= ImGuiWindowFlags_NoInputs;
             }
         }
 
@@ -452,6 +460,7 @@ int main() {
         EndDrawing();
 
         prev = current;
+        ui_focused_prev = ui_focused;
         first_frame = false;
     }
 
