@@ -5,6 +5,7 @@
 #include <math.h> // floor
 
 #include <raylib.h>
+
 #include <cimgui.h>
 #include <rlImGui.h>
 
@@ -229,10 +230,14 @@ int main() {
 
     rlImGuiSetup(true);
 
+    LatLon prev = {NAN, NAN};
+    bool first_frame = true;
+
     while (!WindowShouldClose()) {
 
         UpdateCamera_custom(&camera, CAMERA_FREE);
         LatLon current = geotiff_x_y_to_lat_lon(camera.position.x, camera.position.z, topo_image_full.geo);
+        bool moved = !first_frame && 0 != memcmp(&current, &prev, sizeof(LatLon));
 
         int derived_tile_x_index = (int) floor(camera.position.x / tilew);
         int derived_tile_y_index = (int) floor(camera.position.z / tileh);
@@ -398,14 +403,43 @@ int main() {
 
 
             rlImGuiBegin();
+
+            //bool open = true;
+            //igShowDemoWindow(&open);
+
             bool open = true;
-            igShowDemoWindow(&open);
+            igSetNextWindowSize((ImVec2){100, 100}, ImGuiCond_Once);
+            if (igBegin("my window", &open, ImGuiWindowFlags_None)) {
+                //igText("my text 1");
+                //igText("my text 2");
+
+                //char buf[80];
+                //igInputText("input text", buf, sizeof(buf), ImGuiInputTextFlags_ReadOnly, 0, 0);
+
+                static LatLon new;
+                if (moved || first_frame) {
+                    new = current;
+                }
+                igInputDouble("Latitude",  &new.lat, 0, 0, "%0.6f", ImGuiInputTextFlags_None);
+                igInputDouble("Longitude", &new.lon, 0, 0, "%0.6f", ImGuiInputTextFlags_None);
+
+                if (igButton("Go", (ImVec2){0,0})) {
+                    Vector2 pos = geotiff_lat_lon_to_x_y(new.lat, new.lon, topo_image_full.geo);
+                    camera.position.x = pos.x;
+                    camera.position.z = pos.y;
+                }
+            }
+            igEnd();
+
             rlImGuiEnd();
 
 
             DrawFPS(10, 10);
 
         EndDrawing();
+
+        prev = current;
+        first_frame = false;
     }
 
     CloseWindow();

@@ -1,6 +1,5 @@
 - ui
   - handle mouse properly by checking imgui's `WantMouseInput` and calling raylib's `DisableMouseCursor()` appropriately
-- lat/lon teleport from ui input
 - figure out why there are gaps between tiles.  height map edge weird behavior?  example: lat 59.988696, lon -150.170750.
 - background thread for tile loading.  cancellable when moving fast etc.
 - lat/lon usually aren't 1:1 proportional, but I'm pretending they are; image stretched, at least slightly
