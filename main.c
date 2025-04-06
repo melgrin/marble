@@ -5,6 +5,8 @@
 #include <math.h> // floor
 
 #include <raylib.h>
+#include <cimgui.h>
+#include <rlImGui.h>
 
 //#define STB_IMAGE_IMPLEMENTATION // raylib defines this
 //#define STBI_FAILURE_USERMSG
@@ -108,6 +110,7 @@ static void draw_text(const char* text, int x, int y, int text_height, Color col
 }
 
 int main() {
+    assert(igDebugCheckVersionAndDataLayout(igGetVersion(), sizeof(ImGuiIO), sizeof(ImGuiStyle), sizeof(ImVec2), sizeof(ImVec4), sizeof(ImDrawVert), sizeof(ImDrawIdx)));
 
     const int screenWidth = 800;
     const int screenHeight = 600;
@@ -223,6 +226,8 @@ int main() {
 
     Tiles tiles;
     tiles_init(&tiles, tilew, tileh, _topo_full.n, _color_full.n, &logger);
+
+    rlImGuiSetup(true);
 
     while (!WindowShouldClose()) {
 
@@ -390,6 +395,12 @@ int main() {
 #endif
 
             }
+
+
+            rlImGuiBegin();
+            bool open = true;
+            igShowDemoWindow(&open);
+            rlImGuiEnd();
 
 
             DrawFPS(10, 10);
