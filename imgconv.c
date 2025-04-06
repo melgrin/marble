@@ -24,7 +24,7 @@
 #define QOI_IMPLEMENTATION
 #include <qoi.h>
 
-#include "typedefs.h"
+#include "common.h"
 
 #include "replace_extension.h"
 #include "raw_file.c"

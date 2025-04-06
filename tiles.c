@@ -1,3 +1,4 @@
+
 /*
 
  1  ...
@@ -23,6 +24,8 @@
 
 
 */
+
+#include "./common.h"
 
 #define TILE_X_COUNT   3
 #define TILE_Y_COUNT   3

@@ -1,69 +1,27 @@
 #include <stdio.h>
 #include <assert.h>
-
-#include "./geotiff.c"
-
 #include <stdlib.h> // malloc
 #include <string.h> // memcpy
 #include <math.h> // floor
 
-#include "./typedefs.h"
-
-
-#define swap(type,a,b) do { \
-    type tmp = a; \
-    a = b; \
-    b = tmp; \
-} while(0);
-
-#define arraylen(a) (sizeof(a)/sizeof((a)[0]))
-
-#define clamp(var, min, max) (var > max ? max : var < min ? min : var)
-
-static void get_rect_into_buffer(u8* dst, const u8* src, u32 wsrc, u32 hsrc, u32 nsrc, u32 x0, u32 y0, u32 x1, u32 y1, u32 w, u32 h) {
-    src += x0 * nsrc;
-    src += wsrc * y0 * nsrc;
-    u32 row;
-    for (row = y0; row < y1 && row < hsrc; ++row) {
-        memcpy(dst, src, w * nsrc);
-        dst += w * nsrc;
-        src += wsrc * nsrc;
-    }
-    printf("get_rect: x: %u-%u (w = %u), y: %u-%u (h = %u)\n", x0, x1, w, y0, y1, h);
-    printf("row = %u, y1 = %u, hsrc = %u\n", row, y1, hsrc);
-}
-
-static u8* get_rect(const u8* src, u32 wsrc, u32 hsrc, u32 nsrc, u32 x0, u32 y0, u32 x1, u32 y1) {
-    if (x0 > x1) swap(u32, x0, x1);
-    if (y0 > y1) swap(u32, y0, y1);
-
-    u32 w = x1 - x0;
-    u32 h = y1 - y0;
-    u8* mem = malloc(w * h * nsrc);
-    assert(mem);
-    get_rect_into_buffer(mem, src, wsrc, hsrc, nsrc, x0, y0, x1, y1, w, h);
-    return mem;
-}
-
 #include <raylib.h>
 
-
-#include "./raw_file.c"
-
-
-typedef struct {
-    u8* data; // w * h * n
-    int w; // width, pixels
-    int h; // height, pixels
-    int n; // number of components (3 = RGB, etc)
-} Img; // raylib took the good name
-
-//#define STB_IMAGE_IMPLEMENTATION // raylib includes this
+//#define STB_IMAGE_IMPLEMENTATION // raylib defines this
 //#define STBI_FAILURE_USERMSG
 #include <stb_image.h>
-// by default, raylib compiles-out its ability to load jpg images.  there is no way to check if the version of raylib you're using has it enabled or not, because it's via source file preprocessor macros (see rtextures.c, SUPPORT_FILEFORMAT_JPG).  there is no way to change this without rebuilding all of raylib.  since I don't want to blindly use a custom raylib build, and I don't want to build raylib from source in the first place, this circumvents that part of raylib.  [will probably reconsider the not-from-source decision in the future, because I'm currently planning to use rlImGui+dear-imgui which are both source-only libraries.  so might as well go full submodule on all the dependencies.]
-//#define QOI_IMPLEMENTATION // raylib includes this
+
+//#define QOI_IMPLEMENTATION // raylib defines this
 #include <qoi.h>
+
+#include "./common.c"
+#include "./geotiff.c"
+#include "./raw_file.c"
+#include "./camera.c"
+#include "./world_to_screen.c"
+#include "./logger.c"
+#include "./tiles.c"
+
+
 static Img load_image(const char* filename) {
     double t0 = GetTime();
 
@@ -121,11 +79,6 @@ static Img load_image(const char* filename) {
     return image;
 }
 
-typedef struct Vec2i { int x; int y; } Vec2i;
-typedef struct Rect { int x; int y; int w; int h; } Rect;
-
-#define Vec2Unpack(vec) vec.x, vec.y
-#define Vec3Unpack(vec) vec.x, vec.y, vec.z
 
 // in my brain, z is up.  in raylib, y is up.  this function converts from my brain to raylib.
 static void draw_line_3d(int x0, int y0, int z0, int x1, int y1, int z1, Color color) {
@@ -140,12 +93,6 @@ static void draw_grid_3d(int x, int y, int z, int w, int h, int xstep, int ystep
         draw_line_3d(x+i, y, z, x+i, y+h, z, color);
     }
 }
-
-
-#include "./camera.c"
-#include "./world_to_screen.c"
-#include "./logger.c"
-#include "./tiles.c"
 
 
 static Vec2i world_to_screen(int x, int y, int z, Camera camera) {
@@ -185,8 +132,8 @@ int main() {
     const int tilew = 200;
     const int tileh = 200;
 
-    Point2i tl = {0, 0};
-    Point2i br = {tl.x + tilew, tl.y + tileh};
+    Vector2 tl = {0, 0};
+    Vector2 br = {tl.x + tilew, tl.y + tileh};
 
     const int TILE_X_INDEX_MAX = 10800 / tilew;
     const int TILE_Y_INDEX_MAX = 10800 / tileh;
@@ -196,7 +143,7 @@ int main() {
     Camera camera = { 0 };
     //camera.position = (Vector3){ (float) (tl.x + tilew/2), 8.0f /* @Elevation */, (float) (tl.y + tileh/2) };
     camera.position = (Vector3){ (float) (10800/2), 8.0f /* @Elevation */, (float) (10800/2) };
-    camera.target = (Vector3){ (float) br.x, 8.0f /* @Elevation */, (float) br.y };
+    camera.target = (Vector3){ br.x, 8.0f /* @Elevation */, br.y };
     camera.up = (Vector3){ 0.0f, 1.0f, 0.0f };
     camera.fovy = 60; // 45.0f;
     camera.projection = CAMERA_PERSPECTIVE;
@@ -245,7 +192,7 @@ int main() {
     bool useTopo = false;
     bool move_tiles_with_x_y = false;
 
-    Vector3 model_position = (Vector3){ (float) tl.x, 0.0f, (float) tl.y };
+    Vector3 model_position = (Vector3){ tl.x, 0.0f, tl.y };
     const float rotationAngle = 0.0f;
     const Vector3 rotationAxis = { 0.0f, 1.0f, 0.0f };
     Vector3 vScale = { 1.0f, 0.2f, 1.0f }; // XXX 0.2 is to scale down the vertical in the Seattle region heightmap I'm using.  There's probably a definition of what the scaling should be somewhere and/or I need to think about it more.  (The scaling is initially controlled by the 'size' Vector3 passed to GenMeshHeightmap)
@@ -280,7 +227,7 @@ int main() {
     while (!WindowShouldClose()) {
 
         UpdateCamera_custom(&camera, CAMERA_FREE);
-        LatLon current = geotiff_pixel_to_lat_lon(camera.position.x, camera.position.z, topo_image_full.geo);
+        LatLon current = geotiff_x_y_to_lat_lon(camera.position.x, camera.position.z, topo_image_full.geo);
 
         int derived_tile_x_index = (int) floor(camera.position.x / tilew);
         int derived_tile_y_index = (int) floor(camera.position.z / tileh);
@@ -335,21 +282,21 @@ int main() {
 
                 DrawLine3D((Vector3){camera.position.x, 4.0f, camera.position.z}, (Vector3){0.0f, 4.0f, 0.0f}, RED);
 
-                DrawLine3D((Vector3){(float) tl.x, 0.0f, (float) tl.y}, (Vector3){(float) tl.x, 20.0f, (float) tl.y}, DARKBLUE);
-                DrawLine3D((Vector3){(float) br.x, 0.0f, (float) br.y}, (Vector3){(float) br.x, 20.0f, (float) br.y}, DARKBLUE);
+                DrawLine3D((Vector3){tl.x, 0.0f, tl.y}, (Vector3){tl.x, 20.0f, tl.y}, DARKBLUE);
+                DrawLine3D((Vector3){br.x, 0.0f, br.y}, (Vector3){br.x, 20.0f, br.y}, DARKBLUE);
 
-                for (float x = (float) br.x; x >= 0; x -= tilew) {
-                    DrawLine3D((Vector3){x, 0, (float) br.y}, (Vector3){x, 0, 0}, BLACK);
+                for (float x = br.x; x >= 0; x -= tilew) {
+                    DrawLine3D((Vector3){x, 0, br.y}, (Vector3){x, 0, 0}, BLACK);
                 }
-                for (float y = (float) br.y; y >= 0; y -= tileh) {
-                    DrawLine3D((Vector3){(float) br.x, 0, y}, (Vector3){0, 0, y}, BLACK);
+                for (float y = br.y; y >= 0; y -= tileh) {
+                    DrawLine3D((Vector3){br.x, 0, y}, (Vector3){0, 0, y}, BLACK);
                 }
 
-                for (float x = (float) tl.x; x <= topo_image_full.width; x += tilew) {
-                    DrawLine3D((Vector3){x, 0, (float) br.y}, (Vector3){x, 0, (float)topo_image_full.height}, RED);
+                for (float x = tl.x; x <= topo_image_full.width; x += tilew) {
+                    DrawLine3D((Vector3){x, 0, br.y}, (Vector3){x, 0, (float)topo_image_full.height}, RED);
                 }
-                for (float y = (float) tl.y; y <= topo_image_full.height; y += tileh) {
-                    DrawLine3D((Vector3){(float) br.x, 0, y}, (Vector3){(float)topo_image_full.width, 0, y}, RED);
+                for (float y = tl.y; y <= topo_image_full.height; y += tileh) {
+                    DrawLine3D((Vector3){br.x, 0, y}, (Vector3){(float)topo_image_full.width, 0, y}, RED);
                 }
 
                 draw_grid_3d(tiles.visible_tiles[0]->index.x * tilew, tiles.visible_tiles[0]->index.y * tileh, 200, tilew * 3, tileh * 3, tilew, tileh, YELLOW);

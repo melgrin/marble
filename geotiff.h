@@ -4,6 +4,8 @@
 #include <stdbool.h>
 #include <stdint.h>
 
+#include "./common.h"
+
 /*
    Example GeoTIFF
 
@@ -45,10 +47,10 @@ typedef struct {
     GeoTIFFMetadata geo;
 } GeoTIFFData;
 
-typedef struct {
-    int x;
-    int y;
-} Point2i;
+//typedef struct {
+//    int x;
+//    int y;
+//} Point2i;
 
 typedef struct {
     double lat;
@@ -57,8 +59,10 @@ typedef struct {
 
 bool geotiff_read(const char* filename, GeoTIFFData* img);
 void geotiff_free(GeoTIFFData img);
-Point2i geotiff_lat_lon_to_pixel(double lat, double lon, GeoTIFFMetadata geo);
-LatLon geotiff_pixel_to_lat_lon(double x, double y, GeoTIFFMetadata geo);
+//Point2i geotiff_lat_lon_to_pixel(double lat, double lon, GeoTIFFMetadata geo);
+//LatLon geotiff_pixel_to_lat_lon(double x, double y, GeoTIFFMetadata geo);
+Vector2 geotiff_lat_lon_to_x_y(double lat, double lon, GeoTIFFMetadata geo);
+LatLon geotiff_x_y_to_lat_lon(double x, double y, GeoTIFFMetadata geo);
 
 
 

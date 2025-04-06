@@ -1,4 +1,4 @@
-#include "./typedefs.h"
+#include "./common.h"
 
 typedef struct {
     u32 magic;

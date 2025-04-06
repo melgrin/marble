@@ -1,5 +1,5 @@
 #include "./geotiff.h"
-#include "./typedefs.h"
+#include "./common.h"
 #include <stdint.h>
 //#include <geotiff/xtiffio.h>  // for TIFF
 //#include <geotiff/geotiffio.h> // for GeoTIFF
@@ -19,7 +19,7 @@ static bool _read_field_value(TIFF* tif,  const TIFFField* field, uint32_t* coun
         int count_size = TIFFFieldSetGetCountSize(field);
         assert(count_size > 0);
         // version issue?  using 4.7 on my laptop and it has count_size 4 for u32, and that's what the docs say too.  so where did 1 -> 16, 2 -> 32 come from (and how did it pass on the same file?  using the gebco tif from blue marble)
-#if nocheckin_orig_desktop
+#if desktop__old_version
         if (count_size == 1) {
             uint16_t count;
             if (0 == TIFFGetField(tif, tag, &count, data_out)) return false;
@@ -114,6 +114,7 @@ static bool _read_metadata(TIFF* tif, GeoTIFFMetadata* metadata_out) {
     return true;
 }
 
+#if 0
 Point2i geotiff_lat_lon_to_pixel(double lat, double lon, GeoTIFFMetadata geo) {
     double lat_tied = geo.tie_lat - lat;
     // top:    90 - 90 = 0
@@ -133,15 +134,35 @@ Point2i geotiff_lat_lon_to_pixel(double lat, double lon, GeoTIFFMetadata geo) {
 
     return (Point2i){xi, yi};
 }
+#endif
 
-LatLon geotiff_pixel_to_lat_lon(double x, double y, GeoTIFFMetadata geo) {
+Vector2 geotiff_lat_lon_to_x_y(double lat, double lon, GeoTIFFMetadata geo) {
+    double lat_tied = geo.tie_lat - lat;
+    // top:    90 - 90 = 0
+    // bottom: 90 - 0  = 90
+
+    double y = lat_tied / geo.scale_lat;
+
+    double lon_tied = lon - geo.tie_lon;
+    // left:  -180 - -180 = 0
+    // right: -90  - -180 = 90
+
+    double x = lon_tied / geo.scale_lon;
+
+    //printf("geotiff_lat_lon_to_x_y: lon %f -> x %f, lat %f -> y %f\n", lon, x, lat, y);
+
+    return (Vector2){(float) x, (float) y};
+}
+
+//LatLon geotiff_pixel_to_lat_lon(double x, double y, GeoTIFFMetadata geo)
+LatLon geotiff_x_y_to_lat_lon(double x, double y, GeoTIFFMetadata geo) {
     double lat = geo.tie_lat - (y * geo.scale_lat);
     double lon = x * geo.scale_lon + geo.tie_lon;
     return (LatLon){lat, lon};
 }
 
-#include <stdlib.h> // malloc
 
+#include <stdlib.h> // malloc
 
 bool geotiff_read(const char* filename, GeoTIFFData* img) {
     bool ret;
