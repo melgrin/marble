@@ -1,7 +1,8 @@
 #include <raylib.h>
 #include <rcamera.h>
 
-#define CAMERA_MOVE_SPEED 0.9f
+//#define CAMERA_MOVE_SPEED 0.9f
+#define CAMERA_MOVE_SPEED 9.0f
 #define CAMERA_ROTATION_SPEED 0.03f
 #define CAMERA_MOUSE_MOVE_SENSITIVITY 0.003f
 

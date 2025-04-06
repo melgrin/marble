@@ -5,6 +5,7 @@
 
 #include <stdlib.h> // malloc
 #include <string.h> // memcpy
+#include <math.h> // floor
 
 #include "./typedefs.h"
 
@@ -14,6 +15,10 @@
     a = b; \
     b = tmp; \
 } while(0);
+
+#define arraylen(a) (sizeof(a)/sizeof((a)[0]))
+
+#define clamp(var, min, max) (var > max ? max : var < min ? min : var)
 
 static void get_rect_into_buffer(u8* dst, const u8* src, u32 wsrc, u32 hsrc, u32 nsrc, u32 x0, u32 y0, u32 x1, u32 y1, u32 w, u32 h) {
     src += x0 * nsrc;
@@ -45,13 +50,21 @@ static u8* get_rect(const u8* src, u32 wsrc, u32 hsrc, u32 nsrc, u32 x0, u32 y0,
 
 #include "./raw_file.c"
 
+
+typedef struct {
+    u8* data; // w * h * n
+    int w; // width, pixels
+    int h; // height, pixels
+    int n; // number of components (3 = RGB, etc)
+} Img; // raylib took the good name
+
 //#define STB_IMAGE_IMPLEMENTATION // raylib includes this
 //#define STBI_FAILURE_USERMSG
 #include <stb_image.h>
 // by default, raylib compiles-out its ability to load jpg images.  there is no way to check if the version of raylib you're using has it enabled or not, because it's via source file preprocessor macros (see rtextures.c, SUPPORT_FILEFORMAT_JPG).  there is no way to change this without rebuilding all of raylib.  since I don't want to blindly use a custom raylib build, and I don't want to build raylib from source in the first place, this circumvents that part of raylib.  [will probably reconsider the not-from-source decision in the future, because I'm currently planning to use rlImGui+dear-imgui which are both source-only libraries.  so might as well go full submodule on all the dependencies.]
 //#define QOI_IMPLEMENTATION // raylib includes this
 #include <qoi.h>
-static Image load_image(const char* filename) {
+static Img load_image(const char* filename) {
     double t0 = GetTime();
 
     const char* ext = strrchr(filename, '.');
@@ -96,33 +109,56 @@ static Image load_image(const char* filename) {
     double elapsed = GetTime() - t0;
     printf("loaded %s in %.3f seconds; %u x %u, num channels = %u\n", filename, elapsed, w, h, n);
 
-    PixelFormat format;
-    if (n == 1) format = PIXELFORMAT_UNCOMPRESSED_GRAYSCALE;
-    else if (n == 2) format = PIXELFORMAT_UNCOMPRESSED_GRAY_ALPHA;
-    else if (n == 3) format = PIXELFORMAT_UNCOMPRESSED_R8G8B8;
-    else if (n == 4) format = PIXELFORMAT_UNCOMPRESSED_R8G8B8A8;
-    else { assert(false); exit(1); }
+    assert(n == 1 || n == 2 || n == 3 || n == 4);
 
-    Image image = {
+    Img image = {
         .data = data,
-        .width = w,
-        .height = h,
-        .mipmaps = 1, // default, according to struct definition
-        .format = format,
+        .w = w,
+        .h = h,
+        .n = n,
     };
 
     return image;
 }
 
-////#define STB_IMAGE_WRITE_IMPLEMENTATION
-//#include <stb_image_write.h>
-
 typedef struct Vec2i { int x; int y; } Vec2i;
 typedef struct Rect { int x; int y; int w; int h; } Rect;
 
 #define Vec2Unpack(vec) vec.x, vec.y
+#define Vec3Unpack(vec) vec.x, vec.y, vec.z
+
+// in my brain, z is up.  in raylib, y is up.  this function converts from my brain to raylib.
+static void draw_line_3d(int x0, int y0, int z0, int x1, int y1, int z1, Color color) {
+    DrawLine3D((Vector3){(float) x0, (float) z0, (float) y0}, (Vector3){(float) x1, (float) z1, (float) y1}, color);
+}
+
+static void draw_grid_3d(int x, int y, int z, int w, int h, int xstep, int ystep, Color color) {
+    for (int i = 0; i <= h; i += ystep) { // across
+        draw_line_3d(x, y+i, z, x+w, y+i, z, color);
+    }
+    for (int i = 0; i <= w; i += xstep) { // down
+        draw_line_3d(x+i, y, z, x+i, y+h, z, color);
+    }
+}
+
 
 #include "./camera.c"
+#include "./world_to_screen.c"
+#include "./logger.c"
+#include "./tiles.c"
+
+
+static Vec2i world_to_screen(int x, int y, int z, Camera camera) {
+    Vector3 pos = {(float) x, (float) z, (float) y};
+    Vector2 v = _GetWorldToScreen(pos, camera);
+    return (Vec2i){(int) v.x, (int) v.y};
+}
+
+static void draw_text(const char* text, int x, int y, int text_height, Color color) {
+    if (x >= 0 && y >= 0) {
+        DrawText(text, x, y, text_height, color);
+    }
+}
 
 int main() {
 
@@ -133,25 +169,36 @@ int main() {
     InitWindow(screenWidth, screenHeight, "marble");
     printf("%.3f seconds for InitWindow\n", GetTime() - t0);
 
+    Logger logger = {0};
+    logger.file = fopen("local/log.txt", "ab");
+    log_info(&logger, "\nsession start\n");
 
     const char* filename = "local/gebco_08_rev_elev_A1_grey_geo.tif";
     GeoTIFFData topo_image_full;
     if (!geotiff_read(filename, &topo_image_full)) return 1;
-    const double tl_lat = 48.106075;
-    const double tl_lon = -123.495817;
-    const double br_lat = 46.757553;
-    const double br_lon = -120.915573;
-    Point2i tl = geotiff_lat_lon_to_pixel(tl_lat, tl_lon, topo_image_full.geo);
-    Point2i br = geotiff_lat_lon_to_pixel(br_lat, br_lon, topo_image_full.geo);
-    const int imgw = abs(br.x - tl.x);
-    const int imgh = abs(br.y - tl.y);
+    printf("geo tie lat: %f\ngeo tie lon: %f\ngeo scale lat: %f\ngeo scale lon %f\n",
+        topo_image_full.geo.tie_lat, topo_image_full.geo.tie_lon,
+        topo_image_full.geo.scale_lat, topo_image_full.geo.scale_lon);
 
+
+    // ok with cull distance 1000 and 10000
+    const int tilew = 200;
+    const int tileh = 200;
+
+    Point2i tl = {0, 0};
+    Point2i br = {tl.x + tilew, tl.y + tileh};
+
+    const int TILE_X_INDEX_MAX = 10800 / tilew;
+    const int TILE_Y_INDEX_MAX = 10800 / tileh;
+    int tile_x_index = 0;
+    int tile_y_index = 0;
 
     Camera camera = { 0 };
-    camera.position = (Vector3){ (float) tl.x, 8.0f /* @Elevation */, (float) tl.y };
+    //camera.position = (Vector3){ (float) (tl.x + tilew/2), 8.0f /* @Elevation */, (float) (tl.y + tileh/2) };
+    camera.position = (Vector3){ (float) (10800/2), 8.0f /* @Elevation */, (float) (10800/2) };
     camera.target = (Vector3){ (float) br.x, 8.0f /* @Elevation */, (float) br.y };
     camera.up = (Vector3){ 0.0f, 1.0f, 0.0f };
-    camera.fovy = 45.0f;
+    camera.fovy = 60; // 45.0f;
     camera.projection = CAMERA_PERSPECTIVE;
 
     // UpdateCamera breaks if position == target
@@ -161,63 +208,29 @@ int main() {
         camera.position.z == camera.target.z));
 
 
-    u8* topo_region = malloc(imgw * imgh * topo_image_full.bytes_per_pixel);
-    get_rect_into_buffer(topo_region, topo_image_full.data, topo_image_full.width, topo_image_full.height, topo_image_full.bytes_per_pixel, tl.x, tl.y, br.x, br.y, imgw, imgh);
-
-    PixelFormat format;
-    if (topo_image_full.bytes_per_pixel == 1) format = PIXELFORMAT_UNCOMPRESSED_GRAYSCALE;
-    else if (topo_image_full.bytes_per_pixel == 2) format = PIXELFORMAT_UNCOMPRESSED_GRAY_ALPHA;
-    else if (topo_image_full.bytes_per_pixel == 3) format = PIXELFORMAT_UNCOMPRESSED_R8G8B8;
-    else if (topo_image_full.bytes_per_pixel == 4) format = PIXELFORMAT_UNCOMPRESSED_R8G8B8A8;
-    else assert(false);
-
-    Image topo_image = {
-        .data = topo_region,
-        .width = imgw,
-        .height = imgh,
-        .mipmaps = 1, // default, according to struct definition
-        .format = format,
-    };
-
-
-    Mesh mesh = GenMeshHeightmap(topo_image, (Vector3) {
-        (float) imgw,
-        (float) imgh / 2, // TODO @Elevation - topo image elevations are scaled 0-6400 meters, according to the description on https://visibleearth.nasa.gov/images/73934/topography, but this is just a hardcoded value for now instead
-        (float) imgh });
-    Model model = LoadModelFromMesh(mesh);
-
-
-    Image color_image_full = load_image("local/world.200405.3x10800x10800.A1.raw");
-    if (color_image_full.width != topo_image_full.width ||
-        color_image_full.height != topo_image_full.height) {
-        printf("Image size mismatch: color image is %ux%x, topo image is %ux%u.\n", color_image_full.width, color_image_full.height, topo_image_full.width, topo_image_full.height);
+    Img color_image_full = load_image("local/world.200405.3x10800x10800.A1.raw");
+    if (color_image_full.w != topo_image_full.width ||
+        color_image_full.h != topo_image_full.height) {
+        printf("Image size mismatch: color image is %ux%x, topo image is %ux%u.\n", color_image_full.w, color_image_full.h, topo_image_full.width, topo_image_full.height);
         exit(1);
     }
-    if (color_image_full.format != PIXELFORMAT_UNCOMPRESSED_R8G8B8) { // hand off to myself on this one... maybe raylib Image isn't the best format to store these in
-        printf("Unexpected image format %d.  Expected %d (PIXELFORMAT_UNCOMPRESSED_R8G8B8).\n", color_image_full.format, PIXELFORMAT_UNCOMPRESSED_R8G8B8);
+    if (color_image_full.n != 3) {
+        printf("Unexpected image format %d.  Expected 3.\n", color_image_full.n);
         exit(1);
     }
-    const int color_image_num_components = 3;
 
-    u8* color_region = malloc(imgw * imgh * color_image_num_components);
-    get_rect_into_buffer(color_region, color_image_full.data, color_image_full.width, color_image_full.height, color_image_num_components, tl.x, tl.y, br.x, br.y, imgw, imgh);
-    //stbi_write_bmp("out.bmp", imgw, imgh, color_image_num_components, color_region);
-    Image color_image = {
-        .data = color_region,
-        .width = imgw,
-        .height = imgh,
-        .mipmaps = 1, // default, according to struct definition
-        .format = color_image_full.format,
+    Img _topo_full = {
+        .data = topo_image_full.data,
+        .w = topo_image_full.width,
+        .h = topo_image_full.height,
+        .n = topo_image_full.bytes_per_pixel,
     };
-
-    Texture2D topo_texture = LoadTextureFromImage(topo_image);
-    Texture2D color_texture = LoadTextureFromImage(color_image);
-
-    model.materials[0].maps[MATERIAL_MAP_DIFFUSE].texture = color_texture;
-
-
-    Model grid_model = LoadModelFromMesh(mesh);
-    grid_model.materials[0].maps[MATERIAL_MAP_DIFFUSE].color = LIME;
+    Img _color_full = {
+        .data = color_image_full.data,
+        .w = color_image_full.w,
+        .h = color_image_full.h,
+        .n = color_image_full.n,
+    };
 
 
     SetTargetFPS(60);
@@ -230,8 +243,9 @@ int main() {
     bool drawSolid = true;
     bool showImage = false;
     bool useTopo = false;
+    bool move_tiles_with_x_y = false;
 
-    const Vector3 model_position = (Vector3){ (float) tl.x, 0.0f, (float) tl.y };
+    Vector3 model_position = (Vector3){ (float) tl.x, 0.0f, (float) tl.y };
     const float rotationAngle = 0.0f;
     const Vector3 rotationAxis = { 0.0f, 1.0f, 0.0f };
     Vector3 vScale = { 1.0f, 0.2f, 1.0f }; // XXX 0.2 is to scale down the vertical in the Seattle region heightmap I'm using.  There's probably a definition of what the scaling should be somewhere and/or I need to think about it more.  (The scaling is initially controlled by the 'size' Vector3 passed to GenMeshHeightmap)
@@ -249,16 +263,27 @@ int main() {
     y += text_height;
     Vec2i current_lat_text_position = {x, y}; y += text_height;
     Vec2i current_lon_text_position = {x, y}; y += text_height;
+    y+= text_height;
+    Vec2i derived_tile_text_position = {x, y}; y += text_height;
 
-    int end_x = screenWidth - 5;
-    int start_x = x0 - 10;
-    int w = end_x - start_x;
-    Rect border = {.x = x0 - 10, .y = y0 - 10, .w = w, .h = y};
+    Rect border;
+    {
+        int end_x = screenWidth - 5;
+        int start_x = x0 - 10;
+        int w = end_x - start_x;
+        border = (Rect){.x = x0 - 10, .y = y0 - 10, .w = w, .h = y};
+    }
 
+    Tiles tiles;
+    tiles_init(&tiles, tilew, tileh, _topo_full.n, _color_full.n, &logger);
 
     while (!WindowShouldClose()) {
 
         UpdateCamera_custom(&camera, CAMERA_FREE);
+        LatLon current = geotiff_pixel_to_lat_lon(camera.position.x, camera.position.z, topo_image_full.geo);
+
+        int derived_tile_x_index = (int) floor(camera.position.x / tilew);
+        int derived_tile_y_index = (int) floor(camera.position.z / tileh);
 
         if (IsKeyPressed(KEY_F)) showFloor = !showFloor;
         if (IsKeyPressed(KEY_G)) showGrid = !showGrid;
@@ -269,8 +294,22 @@ int main() {
         if (IsKeyPressed(KEY_ONE)) drawWires = !drawWires;
         if (IsKeyPressed(KEY_TWO)) drawSolid = !drawSolid;
 
-        Texture* texture = useTopo ? &topo_texture : &color_texture;
-        model.materials[0].maps[MATERIAL_MAP_DIFFUSE].texture = *texture;
+        if (move_tiles_with_x_y) {
+            if (IsKeyPressed(KEY_X)) {
+                tile_x_index++;
+            }
+            if (IsKeyPressed(KEY_Y)) {
+                tile_y_index++;
+            }
+        } else {
+            tile_x_index = derived_tile_x_index;
+            tile_y_index = derived_tile_y_index;
+        }
+
+        tile_x_index = clamp(tile_x_index, 0, TILE_X_INDEX_MAX);
+        tile_y_index = clamp(tile_y_index, 0, TILE_Y_INDEX_MAX);
+
+        tiles_update(&tiles, tile_x_index, tile_y_index, _topo_full, _color_full, useTopo);
 
         BeginDrawing();
 
@@ -280,16 +319,56 @@ int main() {
 
                 if (showFloor) DrawPlane((Vector3){0,0,0}, (Vector2){20,20}, GRAY);
 
-                if (drawSolid) DrawModelEx(model, model_position, rotationAxis, rotationAngle, vScale, WHITE);
-                if (drawWires) DrawModelWiresEx(grid_model, model_position, rotationAxis, rotationAngle, vScale, WHITE);
+                for (int i = 0; i < arraylen(tiles.visible_tiles); ++i) {
+                    Tile* tile = tiles.visible_tiles[i];
+                    if (tile) {
+                        if (drawSolid) {
+                            DrawModelEx(tile->data.model, tile->data.model_position, rotationAxis, rotationAngle, vScale, WHITE);
+                        }
+                        if (drawWires) {
+                            DrawModelWiresEx(tile->data.grid_model, tile->data.model_position, rotationAxis, rotationAngle, vScale, WHITE);
+                        }
+                    }
+                }
 
                 if (showGrid) DrawGrid(20, 1.0f);
+
+                DrawLine3D((Vector3){camera.position.x, 4.0f, camera.position.z}, (Vector3){0.0f, 4.0f, 0.0f}, RED);
+
+                DrawLine3D((Vector3){(float) tl.x, 0.0f, (float) tl.y}, (Vector3){(float) tl.x, 20.0f, (float) tl.y}, DARKBLUE);
+                DrawLine3D((Vector3){(float) br.x, 0.0f, (float) br.y}, (Vector3){(float) br.x, 20.0f, (float) br.y}, DARKBLUE);
+
+                for (float x = (float) br.x; x >= 0; x -= tilew) {
+                    DrawLine3D((Vector3){x, 0, (float) br.y}, (Vector3){x, 0, 0}, BLACK);
+                }
+                for (float y = (float) br.y; y >= 0; y -= tileh) {
+                    DrawLine3D((Vector3){(float) br.x, 0, y}, (Vector3){0, 0, y}, BLACK);
+                }
+
+                for (float x = (float) tl.x; x <= topo_image_full.width; x += tilew) {
+                    DrawLine3D((Vector3){x, 0, (float) br.y}, (Vector3){x, 0, (float)topo_image_full.height}, RED);
+                }
+                for (float y = (float) tl.y; y <= topo_image_full.height; y += tileh) {
+                    DrawLine3D((Vector3){(float) br.x, 0, y}, (Vector3){(float)topo_image_full.width, 0, y}, RED);
+                }
+
+                draw_grid_3d(tiles.visible_tiles[0]->index.x * tilew, tiles.visible_tiles[0]->index.y * tileh, 200, tilew * 3, tileh * 3, tilew, tileh, YELLOW);
+
+                DrawCubeWires((Vector3){
+                        (float) tiles.visible_tiles[4]->index.x * tilew + tilew/2,
+                        0,
+                        (float) tiles.visible_tiles[4]->index.y * tileh + tileh/2
+                    },
+                    (float) tilew, camera.position.y * 2, (float) tileh,
+                    BLUE
+                );
+
 
             EndMode3D();
 
             if (showImage) {
-                DrawTexture(*texture, screenWidth - texture->width - 20, 20, WHITE);
-                DrawRectangleLines(screenWidth - texture->width - 20, 20, texture->width, texture->height, GREEN);
+                //DrawTexture(*texture, screenWidth - texture->width - 20, 20, WHITE); // TODO link with tile useTopo
+                //DrawRectangleLines(screenWidth - texture->width - 20, 20, texture->width, texture->height, GREEN);
             }
 
 
@@ -314,7 +393,6 @@ int main() {
                     text_height,
                     BLACK);
 
-                LatLon current = geotiff_pixel_to_lat_lon(camera.position.x, camera.position.z, topo_image_full.geo);
                 DrawText(TextFormat("Current Latitude: %0.6f", current.lat),
                     Vec2Unpack(current_lat_text_position),
                     text_height,
@@ -323,6 +401,47 @@ int main() {
                     Vec2Unpack(current_lon_text_position),
                     text_height,
                     BLACK);
+
+                DrawText(TextFormat("Derived Tile Index: (%d, %d)", derived_tile_x_index, derived_tile_y_index),
+                    Vec2Unpack(derived_tile_text_position),
+                    text_height,
+                    BLACK);
+            }
+
+            for (int i = 0; i < arraylen(tiles.visible_tiles); ++i) {
+                Tile* tile = tiles.visible_tiles[i];
+                Vec2i v = world_to_screen(
+                    tile->index.x * tilew + tilew/2,
+                    tile->index.y * tileh + tileh/2,
+                    200,
+                    camera);
+                DrawRectangle(v.x-5, v.y, 200, text_height, BLACK);
+                draw_text(
+                    TextFormat("i %d: (x %d, y %d): serial %d, cbuf %x", i, tile->index.x, tile->index.y, tile->data_serial, tile->color_buffer),
+                    v.x, v.y,
+                    text_height,
+                    WHITE);
+
+#if 1
+                bool overlap = false;
+                int overlapping_serial = -1;
+                for (int j = 0; j < arraylen(tiles.visible_tiles); ++j) {
+                    Tile* tile2 = tiles.visible_tiles[j];
+                    if (tile->data_serial == tile2->data_serial) continue;
+                    if (tile->color_buffer == tile2->color_buffer) {
+                        overlap = true;
+                        overlapping_serial = tile2->data_serial;
+                        break;
+                    }
+                }
+                DrawRectangle(v.x-5, v.y - text_height, 200, text_height, BLACK);
+                draw_text(
+                    TextFormat("%x (%d)", tile->color_buffer, overlapping_serial),
+                    v.x, v.y - text_height,
+                    text_height,
+                    overlap ? RED : WHITE);
+#endif
+
             }
 
 
@@ -330,10 +449,6 @@ int main() {
 
         EndDrawing();
     }
-
-    UnloadTexture(color_texture);
-    UnloadTexture(topo_texture);
-    UnloadModel(model);
 
     CloseWindow();
 
@@ -345,3 +460,8 @@ int main() {
 
 // TODO region selection - lat/lon vs which images are downloaded
 
+
+// RAM: LoadImage
+// VRAM: LoadTextureFromImage
+// RAM and VRAM: GenMeshHeightmap
+// so...no optimizing memory/pre-fetching then I guess?

@@ -41,3 +41,6 @@ if not exist world.200405.3x10800x10800.A1.raw (
 popd
 
 @if %errorlevel% neq 0 exit /b %errorlevel%
+
+echo:
+echo %date% %time%

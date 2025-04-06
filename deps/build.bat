@@ -76,8 +76,17 @@ lib -nologo -out:./build/libtiff.lib ^
 
 :::: raylib
 
-cl -nologo -c -Fo:./build/ -I ./raylib/src/ -I ./raylib/src/external/glfw/include -DPLATFORM_DESKTOP=1 ./raylib/src/rcore.c
-cl -nologo -c -Fo:./build/ -I ./raylib/src/ ./raylib/src/rshapes.c ./raylib/src/rtextures.c ./raylib/src/rtext.c ./raylib/src/rmodels.c ./raylib/src/utils.c ./raylib/src/rglfw.c
+set raylib_config_override=-I . -FI ./raylib_config/config.h
+cl -nologo -c %raylib_config_override% -Fo:./build/ -I ./raylib/src/ ^
+    -I ./raylib/src/external/glfw/include -DPLATFORM_DESKTOP=1 ^
+    ./raylib/src/rcore.c
+cl -nologo -c %raylib_config_override% -Fo:./build/ -I ./raylib/src/ ^
+    ./raylib/src/rshapes.c ^
+    ./raylib/src/rtextures.c ^
+    ./raylib/src/rtext.c ^
+    ./raylib/src/rmodels.c ^
+    ./raylib/src/utils.c ^
+    ./raylib/src/rglfw.c
 @if %errorlevel% neq 0 exit /b %errorlevel%
 
 lib -nologo -out:./build/raylib.lib ./build/rcore.obj ./build/rshapes.obj ./build/rtextures.obj ./build/rtext.obj ./build/rmodels.obj ./build/utils.obj ./build/rglfw.obj

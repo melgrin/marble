@@ -48,11 +48,11 @@ build.bat
 
 
 ## TODO
-- single image grid region (A1, C2, etc)
-  - streaming
-- handling for all image grids
+- figure out why there are gaps between tiles
+- experiment with larger tile sizes
+- handling for all image grids (A1, C2, etc)
   - download all?
   - disk space vs load time?
-- osm borders, places, buildings
+- osm? borders, places, buildings
 - place search?
 
