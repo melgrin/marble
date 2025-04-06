@@ -1,0 +1,12 @@
+- figure out why there are gaps between tiles.  height map edge weird behavior?  example: lat 59.988696, lon -150.170750.
+- background thread for tile loading.  cancellable when moving fast etc.
+- lat/lon usually aren't 1:1 proportional, but I'm pretending they are; image stretched, at least slightly
+- experiment with larger tile sizes or more tiles in pool
+- lat/lon teleport
+- figure out correct height for terrain
+- handling for all image grids (A1, C2, etc)
+  - download all?
+  - disk space vs load time?
+- osm? borders, places, buildings
+- place search?
+

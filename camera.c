@@ -1,8 +1,7 @@
 #include <raylib.h>
 #include <rcamera.h>
 
-//#define CAMERA_MOVE_SPEED 0.9f
-#define CAMERA_MOVE_SPEED 9.0f
+#define CAMERA_MOVE_SPEED 0.9f
 #define CAMERA_ROTATION_SPEED 0.03f
 #define CAMERA_MOUSE_MOVE_SENSITIVITY 0.003f
 
@@ -13,7 +12,8 @@ void UpdateCamera_custom(Camera* camera, int camera_mode) {
     static const bool rotate_up = false;
 
     float move_speed = CAMERA_MOVE_SPEED;
-    if (IsKeyDown(KEY_LEFT_SHIFT)) move_speed /= 10.0f;
+    if (IsKeyDown(KEY_LEFT_SHIFT)) move_speed *= 10.0f;
+    if (IsKeyDown(KEY_RIGHT_SHIFT)) move_speed /= 10.0f;
 
     if (IsKeyDown(KEY_DOWN)) CameraPitch(camera, -CAMERA_ROTATION_SPEED, lock_view, rotate_around_target, rotate_up);
     if (IsKeyDown(KEY_UP  )) CameraPitch(camera,  CAMERA_ROTATION_SPEED, lock_view, rotate_around_target, rotate_up);
