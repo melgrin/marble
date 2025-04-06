@@ -186,7 +186,11 @@ int main() {
 
     SetTargetFPS(60);
 
-    DisableCursor();
+    rlImGuiSetup(true);
+
+    //DisableCursor();
+    bool ui_focused = true;
+    ImGuiWindowFlags window_flags = ImGuiWindowFlags_None;
 
     bool showFloor = false;
     bool showGrid = false;
@@ -194,7 +198,6 @@ int main() {
     bool drawSolid = true;
     bool showImage = false;
     bool useTopo = false;
-    bool move_tiles_with_x_y = false;
 
     Vector3 model_position = (Vector3){ tl.x, 0.0f, tl.y };
     const float rotationAngle = 0.0f;
@@ -228,43 +231,45 @@ int main() {
     Tiles tiles;
     tiles_init(&tiles, tilew, tileh, _topo_full.n, _color_full.n, &logger);
 
-    rlImGuiSetup(true);
-
     LatLon prev = {NAN, NAN};
     bool first_frame = true;
 
     while (!WindowShouldClose()) {
 
-        UpdateCamera_custom(&camera, CAMERA_FREE);
+        if (IsKeyPressed(KEY_GRAVE)) { // "`" ("~")
+            ui_focused = !ui_focused;
+            window_flags ^= ImGuiWindowFlags_NoInputs;
+            if (ui_focused) {
+                EnableCursor();
+                igSetWindowFocus_Str("my window");
+            } else {
+                DisableCursor();
+                igSetWindowFocus_Nil();
+            }
+        }
+
+        if (ui_focused) {
+
+        } else {
+            UpdateCamera_custom(&camera, CAMERA_FREE);
+
+            if (IsKeyPressed(KEY_F)) showFloor = !showFloor;
+            if (IsKeyPressed(KEY_G)) showGrid = !showGrid;
+            if (IsKeyDown(KEY_J)) vScale.y -= 0.1f * GetFrameTime();
+            if (IsKeyDown(KEY_K)) vScale.y += 0.1f * GetFrameTime();
+            if (IsKeyPressed(KEY_I)) showImage = !showImage;
+            if (IsKeyPressed(KEY_T)) useTopo = !useTopo;
+            if (IsKeyPressed(KEY_ONE)) drawWires = !drawWires;
+            if (IsKeyPressed(KEY_TWO)) drawSolid = !drawSolid;
+        }
+
         LatLon current = geotiff_x_y_to_lat_lon(camera.position.x, camera.position.z, topo_image_full.geo);
         bool moved = !first_frame && 0 != memcmp(&current, &prev, sizeof(LatLon));
 
         int derived_tile_x_index = (int) floor(camera.position.x / tilew);
         int derived_tile_y_index = (int) floor(camera.position.z / tileh);
-
-        if (IsKeyPressed(KEY_F)) showFloor = !showFloor;
-        if (IsKeyPressed(KEY_G)) showGrid = !showGrid;
-        if (IsKeyDown(KEY_J)) vScale.y -= 0.1f * GetFrameTime();
-        if (IsKeyDown(KEY_K)) vScale.y += 0.1f * GetFrameTime();
-        if (IsKeyPressed(KEY_I)) showImage = !showImage;
-        if (IsKeyPressed(KEY_T)) useTopo = !useTopo;
-        if (IsKeyPressed(KEY_ONE)) drawWires = !drawWires;
-        if (IsKeyPressed(KEY_TWO)) drawSolid = !drawSolid;
-
-        if (move_tiles_with_x_y) {
-            if (IsKeyPressed(KEY_X)) {
-                tile_x_index++;
-            }
-            if (IsKeyPressed(KEY_Y)) {
-                tile_y_index++;
-            }
-        } else {
-            tile_x_index = derived_tile_x_index;
-            tile_y_index = derived_tile_y_index;
-        }
-
-        tile_x_index = clamp(tile_x_index, 0, TILE_X_INDEX_MAX);
-        tile_y_index = clamp(tile_y_index, 0, TILE_Y_INDEX_MAX);
+        tile_x_index = clamp(derived_tile_x_index, 0, TILE_X_INDEX_MAX);
+        tile_y_index = clamp(derived_tile_y_index, 0, TILE_Y_INDEX_MAX);
 
         tiles_update(&tiles, tile_x_index, tile_y_index, _topo_full, _color_full, useTopo);
 
@@ -404,12 +409,20 @@ int main() {
 
             rlImGuiBegin();
 
-            //bool open = true;
-            //igShowDemoWindow(&open);
+            //igShowDemoWindow(0);
+            if (igBegin("Debug", 0, window_flags)) {
+                ImGuiIO* io = igGetIO();
+                igText("WantCaptureMouse: %d", io->WantCaptureMouse);
+                igText("WantCaptureMouseUnlessPopupClose: %d", io->WantCaptureMouseUnlessPopupClose);
+                igText("WantCaptureKeyboard: %d", io->WantCaptureKeyboard);
+                igText("WantTextInput: %d", io->WantTextInput);
+                igText("WantSetMousePos: %d", io->WantSetMousePos);
+                igText("NavActive: %d, NavVisible: %d", io->NavActive, io->NavVisible);
+            }
+            igEnd();
 
-            bool open = true;
-            igSetNextWindowSize((ImVec2){100, 100}, ImGuiCond_Once);
-            if (igBegin("my window", &open, ImGuiWindowFlags_None)) {
+            igSetNextWindowSize((ImVec2){200, 100}, ImGuiCond_Once);
+            if (igBegin("my window", 0, window_flags)) {
                 //igText("my text 1");
                 //igText("my text 2");
 
