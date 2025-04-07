@@ -119,7 +119,7 @@ int main() {
     double t0 = GetTime();
     InitWindow(screenWidth, screenHeight, "marble");
     printf("%.3f seconds for InitWindow\n", GetTime() - t0);
-    SetExitKey(KEY_NULL);
+    //SetExitKey(KEY_NULL); // prevent Escape from closing window
 
     Logger logger = {0};
     logger.file = fopen("local/log.txt", "ab");
@@ -443,9 +443,31 @@ int main() {
                 if (moved || first_frame) {
                     new = current_position;
                 }
-                igInputDouble("Latitude",  &new.lat, 0, 0, "%0.6f", ImGuiInputTextFlags_None);
-                igInputDouble("Longitude", &new.lon, 0, 0, "%0.6f", ImGuiInputTextFlags_None);
-                if (igButton("Go", (ImVec2){0,0})) {
+                if (igBeginTable("##LatLonTable", 2, ImGuiTableFlags_None, (ImVec2){0,0}, 0)) {
+                    igTableSetupColumn(NULL, ImGuiTableColumnFlags_WidthFixed, 0, 0);
+                    igTableSetupColumn(NULL, ImGuiTableColumnFlags_WidthStretch, 0, 0);
+
+                    igTableNextRow(ImGuiTableRowFlags_None, 0);
+                    igTableSetColumnIndex(0);
+                    igText("Latitude");
+                    igTableSetColumnIndex(1);
+                    igSetNextItemWidth(100);
+                    igInputDouble("##Latitude", &new.lat, 0, 0, "%.6f", ImGuiInputTextFlags_None);
+
+                    igTableNextRow(ImGuiTableRowFlags_None, 0);
+                    igTableSetColumnIndex(0); // TODO TableNextColumn
+                    igText("Longitude");
+                    igTableSetColumnIndex(1);
+                    igSetNextItemWidth(100);
+                    igInputDouble("##Longitude", &new.lon, 0, 0, "%.6f", ImGuiInputTextFlags_None);
+
+                    igEndTable();
+                }
+                bool go_button_enabled = 0 != memcmp(&current_position, &new, sizeof(LatLon));
+                igBeginDisabled(!go_button_enabled);
+                bool go_button_pressed = igButton("Go to Lat/Lon", (ImVec2){0,0});
+                igEndDisabled();
+                if (go_button_pressed) {
                     Vector2 pos = geotiff_lat_lon_to_x_y(new.lat, new.lon, topo_image_full.geo);
                     camera.position.x = pos.x;
                     camera.position.z = pos.y;
