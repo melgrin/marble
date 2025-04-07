@@ -119,6 +119,7 @@ int main() {
     double t0 = GetTime();
     InitWindow(screenWidth, screenHeight, "marble");
     printf("%.3f seconds for InitWindow\n", GetTime() - t0);
+    SetExitKey(KEY_NULL);
 
     Logger logger = {0};
     logger.file = fopen("local/log.txt", "ab");
@@ -188,9 +189,14 @@ int main() {
 
     rlImGuiSetup(true);
 
-    //DisableCursor();
+#if 1
+    DisableCursor();
+    bool ui_focused = false;
+    ImGuiWindowFlags window_flags = ImGuiWindowFlags_NoInputs;
+#else
     bool ui_focused = true;
     ImGuiWindowFlags window_flags = ImGuiWindowFlags_None;
+#endif
 
     bool showFloor = false;
     bool showGrid = false;
@@ -231,23 +237,25 @@ int main() {
     Tiles tiles;
     tiles_init(&tiles, tilew, tileh, _topo_full.n, _color_full.n, &logger);
 
-    LatLon prev = {NAN, NAN};
+    LatLon prev_position = {NAN, NAN};
     bool ui_focused_prev = ui_focused;
     bool first_frame = true;
+    bool second_frame = false;
+    const char* position_window = "Position";
 
     while (!WindowShouldClose()) {
 
-        if (IsKeyPressed(KEY_GRAVE)) { // "`" ("~")
+        if (IsKeyPressed(KEY_GRAVE) && !igGetIO()->WantCaptureKeyboard) { // KEY_GRAVE = "`" ("~")
             ui_focused = !ui_focused;
         }
         if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT) && !igGetIO()->WantCaptureMouse) {
             ui_focused = false;
         }
 
-        if (ui_focused != ui_focused_prev) {
+        if (second_frame || ui_focused != ui_focused_prev) { // second frame because in the first frame, imgui/rlImGui does some first time init that re-enables the mouse cursor and takes focus
             if (ui_focused) {
                 EnableCursor();
-                igSetWindowFocus_Str("my window");
+                igSetWindowFocus_Str(position_window);
                 window_flags &= ~ImGuiWindowFlags_NoInputs;
             } else {
                 DisableCursor();
@@ -256,11 +264,8 @@ int main() {
             }
         }
 
-        if (ui_focused) {
-
-        } else {
+        if (!ui_focused) {
             UpdateCamera_custom(&camera, CAMERA_FREE);
-
             if (IsKeyPressed(KEY_F)) showFloor = !showFloor;
             if (IsKeyPressed(KEY_G)) showGrid = !showGrid;
             if (IsKeyDown(KEY_J)) vScale.y -= 0.1f * GetFrameTime();
@@ -271,8 +276,8 @@ int main() {
             if (IsKeyPressed(KEY_TWO)) drawSolid = !drawSolid;
         }
 
-        LatLon current = geotiff_x_y_to_lat_lon(camera.position.x, camera.position.z, topo_image_full.geo);
-        bool moved = !first_frame && 0 != memcmp(&current, &prev, sizeof(LatLon));
+        LatLon current_position = geotiff_x_y_to_lat_lon(camera.position.x, camera.position.z, topo_image_full.geo);
+        bool moved = !first_frame && 0 != memcmp(&current_position, &prev_position, sizeof(LatLon));
 
         int derived_tile_x_index = (int) floor(camera.position.x / tilew);
         int derived_tile_y_index = (int) floor(camera.position.z / tileh);
@@ -363,11 +368,11 @@ int main() {
                     text_height,
                     BLACK);
 
-                DrawText(TextFormat("Current Latitude: %0.6f", current.lat),
+                DrawText(TextFormat("Current Latitude: %0.6f", current_position.lat),
                     Vec2Unpack(current_lat_text_position),
                     text_height,
                     BLACK);
-                DrawText(TextFormat("Current Longitude: %0.6f", current.lon),
+                DrawText(TextFormat("Current Longitude: %0.6f", current_position.lon),
                     Vec2Unpack(current_lon_text_position),
                     text_height,
                     BLACK);
@@ -418,6 +423,7 @@ int main() {
             rlImGuiBegin();
 
             //igShowDemoWindow(0);
+#if 0
             if (igBegin("Debug", 0, window_flags)) {
                 ImGuiIO* io = igGetIO();
                 igText("WantCaptureMouse: %d", io->WantCaptureMouse);
@@ -428,22 +434,17 @@ int main() {
                 igText("NavActive: %d, NavVisible: %d", io->NavActive, io->NavVisible);
             }
             igEnd();
+#endif
 
             igSetNextWindowSize((ImVec2){200, 100}, ImGuiCond_Once);
-            if (igBegin("my window", 0, window_flags)) {
-                //igText("my text 1");
-                //igText("my text 2");
-
-                //char buf[80];
-                //igInputText("input text", buf, sizeof(buf), ImGuiInputTextFlags_ReadOnly, 0, 0);
-
+            igSetNextWindowPos((ImVec2){10, 50}, ImGuiCond_Once, (ImVec2){0, 0});
+            if (igBegin(position_window, 0, window_flags)) {
                 static LatLon new;
                 if (moved || first_frame) {
-                    new = current;
+                    new = current_position;
                 }
                 igInputDouble("Latitude",  &new.lat, 0, 0, "%0.6f", ImGuiInputTextFlags_None);
                 igInputDouble("Longitude", &new.lon, 0, 0, "%0.6f", ImGuiInputTextFlags_None);
-
                 if (igButton("Go", (ImVec2){0,0})) {
                     Vector2 pos = geotiff_lat_lon_to_x_y(new.lat, new.lon, topo_image_full.geo);
                     camera.position.x = pos.x;
@@ -454,13 +455,13 @@ int main() {
 
             rlImGuiEnd();
 
-
             DrawFPS(10, 10);
 
         EndDrawing();
 
-        prev = current;
+        prev_position = current_position;
         ui_focused_prev = ui_focused;
+        second_frame = first_frame;
         first_frame = false;
     }
 
