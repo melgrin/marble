@@ -189,14 +189,9 @@ int main() {
 
     rlImGuiSetup(true);
 
-#if 1
     DisableCursor();
     bool ui_focused = false;
     ImGuiWindowFlags window_flags = ImGuiWindowFlags_NoInputs;
-#else
-    bool ui_focused = true;
-    ImGuiWindowFlags window_flags = ImGuiWindowFlags_None;
-#endif
 
     bool useTopo = false;
     bool drawSolid = true;
@@ -219,6 +214,7 @@ int main() {
     };
     const size_t keyboard_shortcuts_len = arraylen(keyboard_shortcuts);
     KeyboardShortcut debug_window_key = {NULL, KEY_GRAVE, "backtick (`)"};
+    // note: imgui has SetNextItemShortcut, but I haven't tried it
 
     Vector3 model_position = (Vector3){ tl.x, 0.0f, tl.y };
     const float rotationAngle = 0.0f;
@@ -439,67 +435,88 @@ int main() {
             if (showImGuiDemoWindow) {
                 igShowDemoWindow(&showImGuiDemoWindow);
             }
-#if 0
-            if (igBegin("Debug", 0, window_flags)) {
-                ImGuiIO* io = igGetIO();
-                igText("WantCaptureMouse: %d", io->WantCaptureMouse);
-                igText("WantCaptureMouseUnlessPopupClose: %d", io->WantCaptureMouseUnlessPopupClose);
-                igText("WantCaptureKeyboard: %d", io->WantCaptureKeyboard);
-                igText("WantTextInput: %d", io->WantTextInput);
-                igText("WantSetMousePos: %d", io->WantSetMousePos);
-                igText("NavActive: %d, NavVisible: %d", io->NavActive, io->NavVisible);
-            }
-            igEnd();
-#endif
 
-            static const ImVec2 debug_window_size = {300, 300};
+            static const ImVec2 debug_window_size = {300, 500};
             igSetNextWindowSize(debug_window_size, ImGuiCond_Once);
             igSetNextWindowPos((ImVec2){10, 50}, ImGuiCond_Once, (ImVec2){0, 0});
             if (igBegin(debug_window, 0, window_flags)) {
+
                 igText("Press %s to select this window", debug_window_key.description);
-                static LatLon new;
-                if (moved || first_frame) {
-                    new = current_position;
-                }
-                if (igBeginTable("##LatLonTable", 2, ImGuiTableFlags_None, (ImVec2){0,0}, 0)) {
-                    igTableSetupColumn(NULL, ImGuiTableColumnFlags_WidthFixed, 0, 0);
-                    igTableSetupColumn(NULL, ImGuiTableColumnFlags_WidthStretch, 0, 0);
 
-                    igTableNextRow(ImGuiTableRowFlags_None, 0);
-                    igTableSetColumnIndex(0);
-                    igText("Latitude");
-                    igTableSetColumnIndex(1);
-                    igSetNextItemWidth(100);
-                    igInputDouble("##Latitude", &new.lat, 0, 0, "%.6f", ImGuiInputTextFlags_None);
+                if (igTreeNodeEx_Str("Position", ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_SpanAvailWidth)) {
 
-                    igTableNextRow(ImGuiTableRowFlags_None, 0);
-                    igTableSetColumnIndex(0);
-                    igText("Longitude");
-                    igTableSetColumnIndex(1);
-                    igSetNextItemWidth(100);
-                    igInputDouble("##Longitude", &new.lon, 0, 0, "%.6f", ImGuiInputTextFlags_None);
+                    static const float input_width = 80;
 
-                    igEndTable();
-                }
-                bool go_button_enabled = 0 != memcmp(&current_position, &new, sizeof(LatLon));
-                igBeginDisabled(!go_button_enabled);
-                bool go_button_pressed = igButton("Go to Lat/Lon", (ImVec2){0,0});
-                igEndDisabled();
-                if (go_button_pressed) {
-                    Vector2 pos = geotiff_lat_lon_to_x_y(new.lat, new.lon, topo_image_full.geo);
-                    camera.position.x = pos.x;
-                    camera.position.z = pos.y;
-                }
-
-                for (size_t i = 0; i < keyboard_shortcuts_len; ++i) {
-                    KeyboardShortcut* ks = &keyboard_shortcuts[i];
-                    if (ks->description != NULL && ks->flag != NULL) {
-                        igCheckbox(ks->description, ks->flag);
+                    {
+                        static LatLon new;
+                        static bool initialized = false;
+                        if (moved || !initialized) {
+                            new = current_position;
+                            initialized = true;
+                        }
+                        igSetNextItemWidth(input_width);
+                        igInputDouble("Latitude", &new.lat, 0, 0, "%.6f", ImGuiInputTextFlags_None);
+                        igSetNextItemWidth(input_width);
+                        igInputDouble("Longitude", &new.lon, 0, 0, "%.6f", ImGuiInputTextFlags_None);
+                        bool go_button_enabled = 0 != memcmp(&current_position, &new, sizeof(LatLon));
+                        igBeginDisabled(!go_button_enabled);
+                        bool go_button_pressed = igButton("Go to Lat/Lon", (ImVec2){0,0});
+                        igEndDisabled();
+                        if (go_button_pressed) {
+                            Vector2 pos = geotiff_lat_lon_to_x_y(new.lat, new.lon, topo_image_full.geo);
+                            camera.position.x = pos.x;
+                            camera.position.z = pos.y;
+                        }
                     }
+
+                    igSeparator();
+
+                    {
+                        static int new_x_index;
+                        static int new_y_index;
+                        static bool initialized = false;
+                        if (moved || !initialized) {
+                            new_x_index = tile_x_index;
+                            new_y_index = tile_y_index;
+                            initialized = true;
+                        }
+                        static char x_format[16] = {0};
+                        static char y_format[16] = {0};
+                        if (!x_format[0]) snprintf(x_format, sizeof(x_format), "%%d / %d", TILE_X_INDEX_MAX);
+                        if (!y_format[0]) snprintf(y_format, sizeof(y_format), "%%d / %d", TILE_Y_INDEX_MAX);
+                        igSetNextItemWidth(input_width);
+                        igSliderInt("Tile x index", &new_x_index, 0, TILE_X_INDEX_MAX, x_format, ImGuiSliderFlags_AlwaysClamp);
+                        igSetNextItemWidth(input_width);
+                        igSliderInt("Tile y index", &new_y_index, 0, TILE_Y_INDEX_MAX, y_format, ImGuiSliderFlags_AlwaysClamp);
+                        bool go_index_button_enabled = new_x_index != tile_x_index || new_y_index != tile_y_index;
+                        igBeginDisabled(!go_index_button_enabled);
+                        bool go_index_button_pressed = igButton("Go to tile x/y index", (ImVec2){0,0});
+                        igEndDisabled();
+                        if (go_index_button_pressed) {
+                            camera.position.x = new_x_index * tilew + tilew/2.0;
+                            camera.position.z = new_y_index * tileh + tileh/2.0;
+                        }
+                    }
+
+                    igTreePop();
                 }
 
-                igSetNextItemWidth(debug_window_size.x / 2);
-                igSliderFloat("Terrain Scale", &vScale.y, -10.0f, 10.0f, "%.3f", ImGuiSliderFlags_None);
+                if (igTreeNodeEx_Str("Options", ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_SpanAvailWidth)) {
+                    for (size_t i = 0; i < keyboard_shortcuts_len; ++i) {
+                        KeyboardShortcut* ks = &keyboard_shortcuts[i];
+                        if (ks->description != NULL && ks->flag != NULL) {
+                            igCheckbox(ks->description, ks->flag);
+                        }
+                    }
+                    igTreePop();
+                }
+
+                if (igTreeNodeEx_Str("Terrain Scale", ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_SpanAvailWidth)) {
+                    igSetNextItemWidth(debug_window_size.x / 2);
+                    igSliderFloat("##Terrain Scale", &vScale.y, -10.0f, 10.0f, "%.3f", ImGuiSliderFlags_None);
+                    igTreePop();
+                }
+
             }
             igEnd();
 

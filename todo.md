@@ -1,10 +1,10 @@
-- ui
-  - tile size/count adjustment?
 - minimap
   - image
   - camera position
   - camera rotation
-- figure out why there are gaps between tiles.  height map edge weird behavior?  example: lat 59.988696, lon -150.170750
+  - current tiles
+- debug why there are gaps between tiles.  height map edge weird behavior?  example: lat 59.988696, lon -150.170750
+- debug why there seems to be 56 tiles, despite 10800 / 200 == 54.  seeing max tile y index of 55 and min tile y index of -1!
 - background thread for tile loading.  cancellable when moving fast etc.
 - lat/lon usually aren't 1:1 proportional, but I'm pretending they are; image stretched, at least slightly
 - experiment with larger tile sizes or more tiles in pool
