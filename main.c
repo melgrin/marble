@@ -198,7 +198,7 @@ int main() {
     ImGuiWindowFlags window_flags = ImGuiWindowFlags_NoInputs;
 
     bool useTopo = false;
-    bool drawSolid = true;
+    bool drawTerrain = true;
     bool drawWires = false;
     bool drawTileDebug = false;
     bool showImGuiDemoWindow = false;
@@ -208,13 +208,14 @@ int main() {
         bool* flag;
         KeyboardKey key;
         const char* description;
+        const char* tooltip;
     } KeyboardShortcut;
     KeyboardShortcut keyboard_shortcuts[] = {
-        {&useTopo, KEY_T, "useTopo (T)"},
-        {&drawSolid, KEY_ONE, "drawSolid (1)"},
-        {&drawWires, KEY_TWO, "drawWires (2)"},
-        {&drawTileDebug, KEY_NULL, "drawTileDebug"},
-        {&showImGuiDemoWindow, KEY_F12, "showImGuiDemoWindow (F12)"},
+        {&useTopo,             KEY_T,    "useTopo (T)", "Use topographic data instead of satellite imagery for terrain colors"},
+        {&drawTerrain,         KEY_ONE,  "drawTerrain (1)"},
+        {&drawWires,           KEY_TWO,  "drawWires (2)", "Draw terrain wireframe"},
+        {&drawTileDebug,       KEY_NULL, "drawTileDebug"},
+        {&showImGuiDemoWindow, KEY_F12,  "showImGuiDemoWindow (F12)"},
     };
     const size_t keyboard_shortcuts_len = arraylen(keyboard_shortcuts);
     KeyboardShortcut debug_window_key = {NULL, KEY_GRAVE, "backtick (`)"};
@@ -310,7 +311,7 @@ int main() {
                 for (int i = 0; i < arraylen(tiles.visible_tiles); ++i) {
                     Tile* tile = tiles.visible_tiles[i];
                     if (tile) {
-                        if (drawSolid) {
+                        if (drawTerrain) {
                             DrawModelEx(tile->data.model, tile->data.model_position, rotationAxis, rotationAngle, vScale, WHITE);
                         }
                         if (drawWires) {
@@ -449,7 +450,7 @@ int main() {
 
                 if (igTreeNodeEx_Str("Position", ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_SpanAvailWidth)) {
 
-                    static const float input_width = 80;
+                    static const float input_width = 90;
 
                     {
                         static LatLon new;
@@ -510,6 +511,11 @@ int main() {
                         KeyboardShortcut* ks = &keyboard_shortcuts[i];
                         if (ks->description != NULL && ks->flag != NULL) {
                             igCheckbox(ks->description, ks->flag);
+                            if (ks->tooltip) {
+                                igSameLine(0, -1);
+                                igTextDisabled("(?)");
+                                igSetItemTooltip(ks->tooltip);
+                            }
                         }
                     }
                     igTreePop();

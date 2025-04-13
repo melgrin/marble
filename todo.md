@@ -1,3 +1,7 @@
+- ui
+  - escape for toggle, and maybe minimize Debug window
+  - update shortcuts. at least don't use F9-F12 because the debugger intercepts those
+  - loaded image info?
 - minimap
   - image
   - camera position
@@ -5,6 +9,7 @@
   - current tiles
 - debug why there are gaps between tiles.  height map edge weird behavior?  example: lat 59.988696, lon -150.170750
 - debug why there seems to be 56 tiles, despite 10800 / 200 == 54.  seeing max tile y index of 55 and min tile y index of -1!
+- first time downloads/setup from freshly-cloned repos
 - background thread for tile loading.  cancellable when moving fast etc.
 - lat/lon usually aren't 1:1 proportional, but I'm pretending they are; image stretched, at least slightly
 - experiment with larger tile sizes or more tiles in pool
@@ -15,3 +20,7 @@
 - osm? borders, places, buildings
 - place search?
 
+
+- some visual issues with tile debug mode
+  - blank black rectangle in the upper left of screen
+  - black rectangles that show tile info disappear the moment the left edge goes off the screen
