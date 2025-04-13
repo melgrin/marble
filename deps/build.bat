@@ -107,7 +107,7 @@ cl -nologo -c -MT -EHsc ^
     ./rlImGui/rlImGui.cpp
 if %errorlevel% neq 0 exit /b %errorlevel%
 
-lib -nologo -out:./build/gui.lib ^
+lib -nologo -out:./build/imgui.lib ^
     ./build/imgui.obj ^
     ./build/imgui_demo.obj ^
     ./build/imgui_draw.obj ^

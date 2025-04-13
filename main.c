@@ -6,7 +6,11 @@
 
 #include <raylib.h>
 
+#define CIMGUI_DEFINE_ENUMS_AND_STRUCTS
+#define CIMGUI_NO_EXPORT
 #include <cimgui.h>
+
+#define NO_FONT_AWESOME
 #include <rlImGui.h>
 
 //#define STB_IMAGE_IMPLEMENTATION // raylib defines this
