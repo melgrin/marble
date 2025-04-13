@@ -198,12 +198,24 @@ int main() {
     ImGuiWindowFlags window_flags = ImGuiWindowFlags_None;
 #endif
 
-    bool showFloor = false;
-    bool showGrid = false;
-    bool drawWires = false;
-    bool drawSolid = true;
-    bool showImage = false;
     bool useTopo = false;
+    bool drawSolid = true;
+    bool drawWires = false;
+    bool drawTileDebug = false;
+    bool showImage = false;
+
+    typedef struct {
+        bool* flag;
+        KeyboardKey key;
+        const char* description;
+    } KeyShortcut;
+    KeyShortcut key_shortcuts[] = {
+        {&useTopo, KEY_T, "useTopo (T)"},
+        {&drawSolid, KEY_ONE, "drawSolid (1)"},
+        {&drawWires, KEY_TWO, "drawWires (2)"},
+        {&drawTileDebug, KEY_NULL, "drawTileDebug"},
+    };
+    const size_t key_shortcuts_len = arraylen(key_shortcuts);
 
     Vector3 model_position = (Vector3){ tl.x, 0.0f, tl.y };
     const float rotationAngle = 0.0f;
@@ -266,14 +278,14 @@ int main() {
 
         if (!ui_focused) {
             UpdateCamera_custom(&camera, CAMERA_FREE);
-            if (IsKeyPressed(KEY_F)) showFloor = !showFloor;
-            if (IsKeyPressed(KEY_G)) showGrid = !showGrid;
             if (IsKeyDown(KEY_J)) vScale.y -= 0.1f * GetFrameTime();
             if (IsKeyDown(KEY_K)) vScale.y += 0.1f * GetFrameTime();
-            if (IsKeyPressed(KEY_I)) showImage = !showImage;
-            if (IsKeyPressed(KEY_T)) useTopo = !useTopo;
-            if (IsKeyPressed(KEY_ONE)) drawWires = !drawWires;
-            if (IsKeyPressed(KEY_TWO)) drawSolid = !drawSolid;
+            for (size_t i = 0; i < key_shortcuts_len; ++i) {
+                KeyShortcut* ks = &key_shortcuts[i];
+                if (ks->key != KEY_NULL && ks->flag != NULL && IsKeyPressed(ks->key)) {
+                    *ks->flag = !*ks->flag;
+                }
+            }
         }
 
         LatLon current_position = geotiff_x_y_to_lat_lon(camera.position.x, camera.position.z, topo_image_full.geo);
@@ -292,8 +304,6 @@ int main() {
 
             BeginMode3D(camera);
 
-                if (showFloor) DrawPlane((Vector3){0,0,0}, (Vector2){20,20}, GRAY);
-
                 for (int i = 0; i < arraylen(tiles.visible_tiles); ++i) {
                     Tile* tile = tiles.visible_tiles[i];
                     if (tile) {
@@ -306,37 +316,39 @@ int main() {
                     }
                 }
 
-                if (showGrid) DrawGrid(20, 1.0f);
+                if (drawTileDebug) {
 
-                DrawLine3D((Vector3){camera.position.x, 4.0f, camera.position.z}, (Vector3){0.0f, 4.0f, 0.0f}, RED);
+                    DrawLine3D((Vector3){camera.position.x, 4.0f, camera.position.z}, (Vector3){0.0f, 4.0f, 0.0f}, RED);
 
-                DrawLine3D((Vector3){tl.x, 0.0f, tl.y}, (Vector3){tl.x, 20.0f, tl.y}, DARKBLUE);
-                DrawLine3D((Vector3){br.x, 0.0f, br.y}, (Vector3){br.x, 20.0f, br.y}, DARKBLUE);
+                    DrawLine3D((Vector3){tl.x, 0.0f, tl.y}, (Vector3){tl.x, 20.0f, tl.y}, DARKBLUE);
+                    DrawLine3D((Vector3){br.x, 0.0f, br.y}, (Vector3){br.x, 20.0f, br.y}, DARKBLUE);
 
-                for (float x = br.x; x >= 0; x -= tilew) {
-                    DrawLine3D((Vector3){x, 0, br.y}, (Vector3){x, 0, 0}, BLACK);
+                    for (float x = br.x; x >= 0; x -= tilew) {
+                        DrawLine3D((Vector3){x, 0, br.y}, (Vector3){x, 0, 0}, BLACK);
+                    }
+                    for (float y = br.y; y >= 0; y -= tileh) {
+                        DrawLine3D((Vector3){br.x, 0, y}, (Vector3){0, 0, y}, BLACK);
+                    }
+
+                    for (float x = tl.x; x <= topo_image_full.width; x += tilew) {
+                        DrawLine3D((Vector3){x, 0, br.y}, (Vector3){x, 0, (float)topo_image_full.height}, RED);
+                    }
+                    for (float y = tl.y; y <= topo_image_full.height; y += tileh) {
+                        DrawLine3D((Vector3){br.x, 0, y}, (Vector3){(float)topo_image_full.width, 0, y}, RED);
+                    }
+
+                    draw_grid_3d(tiles.visible_tiles[0]->index.x * tilew, tiles.visible_tiles[0]->index.y * tileh, 200, tilew * 3, tileh * 3, tilew, tileh, YELLOW);
+
+                    DrawCubeWires((Vector3){
+                            (float) tiles.visible_tiles[4]->index.x * tilew + tilew/2,
+                            0,
+                            (float) tiles.visible_tiles[4]->index.y * tileh + tileh/2
+                        },
+                        (float) tilew, camera.position.y * 2, (float) tileh,
+                        BLUE
+                    );
+
                 }
-                for (float y = br.y; y >= 0; y -= tileh) {
-                    DrawLine3D((Vector3){br.x, 0, y}, (Vector3){0, 0, y}, BLACK);
-                }
-
-                for (float x = tl.x; x <= topo_image_full.width; x += tilew) {
-                    DrawLine3D((Vector3){x, 0, br.y}, (Vector3){x, 0, (float)topo_image_full.height}, RED);
-                }
-                for (float y = tl.y; y <= topo_image_full.height; y += tileh) {
-                    DrawLine3D((Vector3){br.x, 0, y}, (Vector3){(float)topo_image_full.width, 0, y}, RED);
-                }
-
-                draw_grid_3d(tiles.visible_tiles[0]->index.x * tilew, tiles.visible_tiles[0]->index.y * tileh, 200, tilew * 3, tileh * 3, tilew, tileh, YELLOW);
-
-                DrawCubeWires((Vector3){
-                        (float) tiles.visible_tiles[4]->index.x * tilew + tilew/2,
-                        0,
-                        (float) tiles.visible_tiles[4]->index.y * tileh + tileh/2
-                    },
-                    (float) tilew, camera.position.y * 2, (float) tileh,
-                    BLUE
-                );
 
 
             EndMode3D();
@@ -383,40 +395,39 @@ int main() {
                     BLACK);
             }
 
-            for (int i = 0; i < arraylen(tiles.visible_tiles); ++i) {
-                Tile* tile = tiles.visible_tiles[i];
-                Vec2i v = world_to_screen(
-                    tile->index.x * tilew + tilew/2,
-                    tile->index.y * tileh + tileh/2,
-                    200,
-                    camera);
-                DrawRectangle(v.x-5, v.y, 200, text_height, BLACK);
-                draw_text(
-                    TextFormat("i %d: (x %d, y %d): serial %d, cbuf %x", i, tile->index.x, tile->index.y, tile->data_serial, tile->color_buffer),
-                    v.x, v.y,
-                    text_height,
-                    WHITE);
+            if (drawTileDebug) {
+                for (int i = 0; i < arraylen(tiles.visible_tiles); ++i) {
+                    Tile* tile = tiles.visible_tiles[i];
+                    Vec2i v = world_to_screen(
+                        tile->index.x * tilew + tilew/2,
+                        tile->index.y * tileh + tileh/2,
+                        200,
+                        camera);
+                    DrawRectangle(v.x-5, v.y, 200, text_height, BLACK);
+                    draw_text(
+                        TextFormat("i %d: (x %d, y %d): serial %d, cbuf %x", i, tile->index.x, tile->index.y, tile->data_serial, tile->color_buffer),
+                        v.x, v.y,
+                        text_height,
+                        WHITE);
 
-#if 1
-                bool overlap = false;
-                int overlapping_serial = -1;
-                for (int j = 0; j < arraylen(tiles.visible_tiles); ++j) {
-                    Tile* tile2 = tiles.visible_tiles[j];
-                    if (tile->data_serial == tile2->data_serial) continue;
-                    if (tile->color_buffer == tile2->color_buffer) {
-                        overlap = true;
-                        overlapping_serial = tile2->data_serial;
-                        break;
+                    bool overlap = false;
+                    int overlapping_serial = -1;
+                    for (int j = 0; j < arraylen(tiles.visible_tiles); ++j) {
+                        Tile* tile2 = tiles.visible_tiles[j];
+                        if (tile->data_serial == tile2->data_serial) continue;
+                        if (tile->color_buffer == tile2->color_buffer) {
+                            overlap = true;
+                            overlapping_serial = tile2->data_serial;
+                            break;
+                        }
                     }
+                    DrawRectangle(v.x-5, v.y - text_height, 200, text_height, BLACK);
+                    draw_text(
+                        TextFormat("%x (%d)", tile->color_buffer, overlapping_serial),
+                        v.x, v.y - text_height,
+                        text_height,
+                        overlap ? RED : WHITE);
                 }
-                DrawRectangle(v.x-5, v.y - text_height, 200, text_height, BLACK);
-                draw_text(
-                    TextFormat("%x (%d)", tile->color_buffer, overlapping_serial),
-                    v.x, v.y - text_height,
-                    text_height,
-                    overlap ? RED : WHITE);
-#endif
-
             }
 
 
@@ -436,7 +447,7 @@ int main() {
             igEnd();
 #endif
 
-            igSetNextWindowSize((ImVec2){200, 100}, ImGuiCond_Once);
+            igSetNextWindowSize((ImVec2){200, 300}, ImGuiCond_Once);
             igSetNextWindowPos((ImVec2){10, 50}, ImGuiCond_Once, (ImVec2){0, 0});
             if (igBegin(position_window, 0, window_flags)) {
                 static LatLon new;
@@ -455,7 +466,7 @@ int main() {
                     igInputDouble("##Latitude", &new.lat, 0, 0, "%.6f", ImGuiInputTextFlags_None);
 
                     igTableNextRow(ImGuiTableRowFlags_None, 0);
-                    igTableSetColumnIndex(0); // TODO TableNextColumn
+                    igTableSetColumnIndex(0);
                     igText("Longitude");
                     igTableSetColumnIndex(1);
                     igSetNextItemWidth(100);
@@ -471,6 +482,13 @@ int main() {
                     Vector2 pos = geotiff_lat_lon_to_x_y(new.lat, new.lon, topo_image_full.geo);
                     camera.position.x = pos.x;
                     camera.position.z = pos.y;
+                }
+
+                for (size_t i = 0; i < key_shortcuts_len; ++i) {
+                    KeyShortcut* ks = &key_shortcuts[i];
+                    if (ks->description != NULL && ks->flag != NULL) {
+                        igCheckbox(ks->description, ks->flag);
+                    }
                 }
             }
             igEnd();
