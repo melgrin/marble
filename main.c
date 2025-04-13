@@ -209,15 +209,16 @@ int main() {
         bool* flag;
         KeyboardKey key;
         const char* description;
-    } KeyShortcut;
-    KeyShortcut key_shortcuts[] = {
+    } KeyboardShortcut;
+    KeyboardShortcut keyboard_shortcuts[] = {
         {&useTopo, KEY_T, "useTopo (T)"},
         {&drawSolid, KEY_ONE, "drawSolid (1)"},
         {&drawWires, KEY_TWO, "drawWires (2)"},
         {&drawTileDebug, KEY_NULL, "drawTileDebug"},
         {&showImGuiDemoWindow, KEY_F12, "showImGuiDemoWindow (F12)"},
     };
-    const size_t key_shortcuts_len = arraylen(key_shortcuts);
+    const size_t keyboard_shortcuts_len = arraylen(keyboard_shortcuts);
+    KeyboardShortcut debug_window_key = {NULL, KEY_GRAVE, "backtick (`)"};
 
     Vector3 model_position = (Vector3){ tl.x, 0.0f, tl.y };
     const float rotationAngle = 0.0f;
@@ -255,11 +256,11 @@ int main() {
     bool ui_focused_prev = ui_focused;
     bool first_frame = true;
     bool second_frame = false;
-    const char* position_window = "Position";
+    const char* debug_window = "Debug";
 
     while (!WindowShouldClose()) {
 
-        if (IsKeyPressed(KEY_GRAVE) && !igGetIO()->WantCaptureKeyboard) { // KEY_GRAVE = "`" ("~")
+        if (IsKeyPressed(debug_window_key.key) && !igGetIO()->WantCaptureKeyboard) {
             ui_focused = !ui_focused;
         }
         if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT) && !igGetIO()->WantCaptureMouse) {
@@ -269,7 +270,7 @@ int main() {
         if (second_frame || ui_focused != ui_focused_prev) { // second frame because in the first frame, imgui/rlImGui does some first time init that re-enables the mouse cursor and takes focus
             if (ui_focused) {
                 EnableCursor();
-                igSetWindowFocus_Str(position_window);
+                igSetWindowFocus_Str(debug_window);
                 window_flags &= ~ImGuiWindowFlags_NoInputs;
             } else {
                 DisableCursor();
@@ -282,8 +283,8 @@ int main() {
             UpdateCamera_custom(&camera, CAMERA_FREE);
             if (IsKeyDown(KEY_J)) vScale.y -= 0.1f * GetFrameTime();
             if (IsKeyDown(KEY_K)) vScale.y += 0.1f * GetFrameTime();
-            for (size_t i = 0; i < key_shortcuts_len; ++i) {
-                KeyShortcut* ks = &key_shortcuts[i];
+            for (size_t i = 0; i < keyboard_shortcuts_len; ++i) {
+                KeyboardShortcut* ks = &keyboard_shortcuts[i];
                 if (ks->key != KEY_NULL && ks->flag != NULL && IsKeyPressed(ks->key)) {
                     *ks->flag = !*ks->flag;
                 }
@@ -436,7 +437,7 @@ int main() {
             rlImGuiBegin();
 
             if (showImGuiDemoWindow) {
-                igShowDemoWindow(0);
+                igShowDemoWindow(&showImGuiDemoWindow);
             }
 #if 0
             if (igBegin("Debug", 0, window_flags)) {
@@ -454,7 +455,8 @@ int main() {
             static const ImVec2 debug_window_size = {300, 300};
             igSetNextWindowSize(debug_window_size, ImGuiCond_Once);
             igSetNextWindowPos((ImVec2){10, 50}, ImGuiCond_Once, (ImVec2){0, 0});
-            if (igBegin(position_window, 0, window_flags)) {
+            if (igBegin(debug_window, 0, window_flags)) {
+                igText("Press %s to select this window", debug_window_key.description);
                 static LatLon new;
                 if (moved || first_frame) {
                     new = current_position;
@@ -489,8 +491,8 @@ int main() {
                     camera.position.z = pos.y;
                 }
 
-                for (size_t i = 0; i < key_shortcuts_len; ++i) {
-                    KeyShortcut* ks = &key_shortcuts[i];
+                for (size_t i = 0; i < keyboard_shortcuts_len; ++i) {
+                    KeyboardShortcut* ks = &keyboard_shortcuts[i];
                     if (ks->description != NULL && ks->flag != NULL) {
                         igCheckbox(ks->description, ks->flag);
                     }
