@@ -119,7 +119,7 @@ int main() {
     double t0 = GetTime();
     InitWindow(screenWidth, screenHeight, "marble");
     printf("%.3f seconds for InitWindow\n", GetTime() - t0);
-    //SetExitKey(KEY_NULL); // prevent Escape from closing window
+    SetExitKey(KEY_NULL); // prevent Escape from closing window
 
     Logger logger = {0};
     logger.file = fopen("local/log.txt", "ab");
@@ -202,6 +202,7 @@ int main() {
     bool drawSolid = true;
     bool drawWires = false;
     bool drawTileDebug = false;
+    bool showImGuiDemoWindow = false;
     bool showImage = false;
 
     typedef struct {
@@ -214,6 +215,7 @@ int main() {
         {&drawSolid, KEY_ONE, "drawSolid (1)"},
         {&drawWires, KEY_TWO, "drawWires (2)"},
         {&drawTileDebug, KEY_NULL, "drawTileDebug"},
+        {&showImGuiDemoWindow, KEY_F12, "showImGuiDemoWindow (F12)"},
     };
     const size_t key_shortcuts_len = arraylen(key_shortcuts);
 
@@ -433,7 +435,9 @@ int main() {
 
             rlImGuiBegin();
 
-            //igShowDemoWindow(0);
+            if (showImGuiDemoWindow) {
+                igShowDemoWindow(0);
+            }
 #if 0
             if (igBegin("Debug", 0, window_flags)) {
                 ImGuiIO* io = igGetIO();
@@ -447,7 +451,8 @@ int main() {
             igEnd();
 #endif
 
-            igSetNextWindowSize((ImVec2){200, 300}, ImGuiCond_Once);
+            static const ImVec2 debug_window_size = {300, 300};
+            igSetNextWindowSize(debug_window_size, ImGuiCond_Once);
             igSetNextWindowPos((ImVec2){10, 50}, ImGuiCond_Once, (ImVec2){0, 0});
             if (igBegin(position_window, 0, window_flags)) {
                 static LatLon new;
@@ -490,6 +495,9 @@ int main() {
                         igCheckbox(ks->description, ks->flag);
                     }
                 }
+
+                igSetNextItemWidth(debug_window_size.x / 2);
+                igSliderFloat("Terrain Scale", &vScale.y, -10.0f, 10.0f, "%.3f", ImGuiSliderFlags_None);
             }
             igEnd();
 

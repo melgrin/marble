@@ -1,5 +1,4 @@
 - ui
-  - slider for terrain height
   - tile size/count adjustment?
   - minimap
     - image
