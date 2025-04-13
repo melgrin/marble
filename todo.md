@@ -1,14 +1,15 @@
 - ui
   - escape for toggle, and maybe minimize Debug window
   - update shortcuts. at least don't use F9-F12 because the debugger intercepts those
-  - loaded image info?
+  - investigate imgui shortcuts.  does it look better than the key in parens like I have now?  is there some extra functionality that is useful?
 - minimap
   - image
   - camera position
   - camera rotation
   - current tiles
-- debug why there are gaps between tiles.  height map edge weird behavior?  example: lat 59.988696, lon -150.170750
-- debug why there seems to be 56 tiles, despite 10800 / 200 == 54.  seeing max tile y index of 55 and min tile y index of -1!
+- debug crash when going to tile 0,0 via ui
+- debug why there are gaps between tiles.  height map edge weird behavior?  example: lat 59.988696, lon -150.170750.  see ./local/tile_gap.png.
+- debug why there seems to be 56 tiles, despite 10800 / 200 == 54.  seeing max tile y index of 55 and min tile y index of -1!  see ./local/off_the_end.png.
 - first time downloads/setup from freshly-cloned repos
 - background thread for tile loading.  cancellable when moving fast etc.
 - lat/lon usually aren't 1:1 proportional, but I'm pretending they are; image stretched, at least slightly
@@ -17,6 +18,7 @@
 - handling for all image grids (A1, C2, etc)
   - download all?
   - disk space vs load time?
+  - region select/teleport?
 - osm? borders, places, buildings
 - place search?
 

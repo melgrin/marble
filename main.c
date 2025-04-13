@@ -129,9 +129,9 @@ int main() {
     logger.file = fopen("local/log.txt", "ab");
     log_info(&logger, "\nsession start\n");
 
-    const char* filename = "local/gebco_08_rev_elev_A1_grey_geo.tif";
+    const char* color_image_filename = "local/gebco_08_rev_elev_A1_grey_geo.tif";
     GeoTIFFData topo_image_full;
-    if (!geotiff_read(filename, &topo_image_full)) return 1;
+    if (!geotiff_read(color_image_filename, &topo_image_full)) return 1;
     printf("geo tie lat: %f\ngeo tie lon: %f\ngeo scale lat: %f\ngeo scale lon %f\n",
         topo_image_full.geo.tie_lat, topo_image_full.geo.tie_lon,
         topo_image_full.geo.scale_lat, topo_image_full.geo.scale_lon);
@@ -164,10 +164,11 @@ int main() {
         camera.position.z == camera.target.z));
 
 
-    Img color_image_full = load_image("local/world.200405.3x10800x10800.A1.raw");
+    const char* topo_image_filename = "local/world.200405.3x10800x10800.A1.raw";
+    Img color_image_full = load_image(topo_image_filename);
     if (color_image_full.w != topo_image_full.width ||
         color_image_full.h != topo_image_full.height) {
-        printf("Image size mismatch: color image is %ux%x, topo image is %ux%u.\n", color_image_full.w, color_image_full.h, topo_image_full.width, topo_image_full.height);
+        printf("Image size mismatch: color image is %ux%u, topo image is %ux%u.\n", color_image_full.w, color_image_full.h, topo_image_full.width, topo_image_full.height);
         exit(1);
     }
     if (color_image_full.n != 3) {
@@ -195,7 +196,7 @@ int main() {
 
     DisableCursor();
     bool ui_focused = false;
-    ImGuiWindowFlags window_flags = ImGuiWindowFlags_NoInputs;
+    ImGuiWindowFlags debug_window_flags = ImGuiWindowFlags_NoInputs;
 
     bool useTopo = false;
     bool drawTerrain = true;
@@ -272,11 +273,11 @@ int main() {
             if (ui_focused) {
                 EnableCursor();
                 igSetWindowFocus_Str(debug_window);
-                window_flags &= ~ImGuiWindowFlags_NoInputs;
+                debug_window_flags &= ~ImGuiWindowFlags_NoInputs;
             } else {
                 DisableCursor();
                 igSetWindowFocus_Nil();
-                window_flags |= ImGuiWindowFlags_NoInputs;
+                debug_window_flags |= ImGuiWindowFlags_NoInputs;
             }
         }
 
@@ -441,14 +442,14 @@ int main() {
                 igShowDemoWindow(&showImGuiDemoWindow);
             }
 
-            static const ImVec2 debug_window_size = {300, 500};
+            static const ImVec2 debug_window_size = {.x = 340, .y = 300};
             igSetNextWindowSize(debug_window_size, ImGuiCond_Once);
             igSetNextWindowPos((ImVec2){10, 50}, ImGuiCond_Once, (ImVec2){0, 0});
-            if (igBegin(debug_window, 0, window_flags)) {
+            if (igBegin(debug_window, 0, debug_window_flags)) {
 
                 igText("Press %s to select this window", debug_window_key.description);
 
-                if (igTreeNodeEx_Str("Position", ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_SpanAvailWidth)) {
+                if (igTreeNodeEx_Str("Position", ImGuiTreeNodeFlags_SpanAvailWidth | ImGuiTreeNodeFlags_DefaultOpen)) {
 
                     static const float input_width = 90;
 
@@ -491,13 +492,21 @@ int main() {
                         if (!y_format[0]) snprintf(y_format, sizeof(y_format), "%%d / %d", TILE_Y_INDEX_MAX);
                         igSetNextItemWidth(input_width);
                         igSliderInt("Tile x index", &new_x_index, 0, TILE_X_INDEX_MAX, x_format, ImGuiSliderFlags_AlwaysClamp);
+                        if (new_x_index != derived_tile_x_index) {
+                            igSameLine(0, -1);
+                            igText("(%d)", derived_tile_x_index);
+                        }
                         igSetNextItemWidth(input_width);
                         igSliderInt("Tile y index", &new_y_index, 0, TILE_Y_INDEX_MAX, y_format, ImGuiSliderFlags_AlwaysClamp);
-                        bool go_index_button_enabled = new_x_index != tile_x_index || new_y_index != tile_y_index;
-                        igBeginDisabled(!go_index_button_enabled);
-                        bool go_index_button_pressed = igButton("Go to tile x/y index", (ImVec2){0,0});
+                        if (new_y_index != derived_tile_y_index) {
+                            igSameLine(0, -1);
+                            igText("(%d)", derived_tile_y_index);
+                        }
+                        bool go_button_enabled = new_x_index != tile_x_index || new_y_index != tile_y_index;
+                        igBeginDisabled(!go_button_enabled);
+                        bool go_button_pressed = igButton("Go to tile x/y index", (ImVec2){0,0});
                         igEndDisabled();
-                        if (go_index_button_pressed) {
+                        if (go_button_pressed) {
                             camera.position.x = new_x_index * tilew + tilew/2.0;
                             camera.position.z = new_y_index * tileh + tileh/2.0;
                         }
@@ -506,7 +515,7 @@ int main() {
                     igTreePop();
                 }
 
-                if (igTreeNodeEx_Str("Options", ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_SpanAvailWidth)) {
+                if (igTreeNodeEx_Str("Options", ImGuiTreeNodeFlags_SpanAvailWidth)) {
                     for (size_t i = 0; i < keyboard_shortcuts_len; ++i) {
                         KeyboardShortcut* ks = &keyboard_shortcuts[i];
                         if (ks->description != NULL && ks->flag != NULL) {
@@ -521,9 +530,48 @@ int main() {
                     igTreePop();
                 }
 
-                if (igTreeNodeEx_Str("Terrain Scale", ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_SpanAvailWidth)) {
+                if (igTreeNodeEx_Str("Terrain Scale", ImGuiTreeNodeFlags_SpanAvailWidth)) {
                     igSetNextItemWidth(debug_window_size.x / 2);
                     igSliderFloat("##Terrain Scale", &vScale.y, -10.0f, 10.0f, "%.3f", ImGuiSliderFlags_None);
+                    igTreePop();
+                }
+
+                if (igTreeNodeEx_Str("Images", ImGuiTreeNodeFlags_SpanAvailWidth)) {
+                    if (igBeginTable("##ImageTable", 3, ImGuiTableFlags_None, (ImVec2){0,0}, 0)) {
+                        igTableSetupColumn(NULL, ImGuiTableColumnFlags_WidthFixed, 0, 0);
+                        igTableSetupColumn(NULL, ImGuiTableColumnFlags_WidthFixed, 0, 0);
+                        igTableSetupColumn(NULL, ImGuiTableColumnFlags_WidthStretch, 0, 0);
+                        igTableNextColumn(); igText("Topo");
+                        igTableNextColumn(); igText("%ux%ux%u", _topo_full.w, _topo_full.h, _topo_full.n);
+                        igTableNextColumn(); igText(topo_image_filename);
+                        igTableNextColumn(); igText("Color");
+                        igTableNextColumn(); igText("%ux%ux%u", _color_full.w, _color_full.h, _color_full.n);
+                        igTableNextColumn(); igText(color_image_filename);
+                        igEndTable();
+                    }
+                    igTreePop();
+                }
+
+                if (igTreeNodeEx_Str("Camera", ImGuiTreeNodeFlags_SpanAvailWidth)) {
+                    if (igBeginTable("##CameraTable", 4, ImGuiTableFlags_None, (ImVec2){0,0}, 0)) {
+                        igTableSetupColumn(NULL, ImGuiTableColumnFlags_WidthFixed, 60, 0);
+                        igTableSetupColumn(NULL, ImGuiTableColumnFlags_WidthFixed, 60, 0);
+                        igTableSetupColumn(NULL, ImGuiTableColumnFlags_WidthFixed, 60, 0);
+                        igTableSetupColumn(NULL, ImGuiTableColumnFlags_WidthFixed, 60, 0);
+                        igTableNextColumn(); igText("Position");
+                        igTableNextColumn(); igText("%.3f", camera.position.x);
+                        igTableNextColumn(); igText("%.3f", camera.position.y);
+                        igTableNextColumn(); igText("%.3f", camera.position.z);
+                        igTableNextColumn(); igText("Target");
+                        igTableNextColumn(); igText("%.3f", camera.target.x);
+                        igTableNextColumn(); igText("%.3f", camera.target.y);
+                        igTableNextColumn(); igText("%.3f", camera.target.z);
+                        igTableNextColumn(); igText("Up");
+                        igTableNextColumn(); igText("%.3f", camera.up.x);
+                        igTableNextColumn(); igText("%.3f", camera.up.y);
+                        igTableNextColumn(); igText("%.3f", camera.up.z);
+                        igEndTable();
+                    }
                     igTreePop();
                 }
 
@@ -548,9 +596,6 @@ int main() {
 
     return 0;
 }
-
-
-// TODO region selection - lat/lon vs which images are downloaded
 
 
 // RAM: LoadImage
