@@ -227,34 +227,27 @@ int main() {
     const Vector3 rotationAxis = { 0.0f, 1.0f, 0.0f };
     Vector3 vScale = { 1.0f, 0.2f, 1.0f }; // XXX 0.2 is to scale down the vertical in the Seattle region heightmap I'm using.  There's probably a definition of what the scaling should be somewhere and/or I need to think about it more.  (The scaling is initially controlled by the 'size' Vector3 passed to GenMeshHeightmap)
 
-    const int x0 = 590;
-    const int y0 = 15;
-    const int text_height = 10;
-    int x = x0;
-    int y = y0;
-
-    Vec2i camera_status_title_text_position = {x, y}; y += text_height;
-    Vec2i camera_status_position_text_position = {x, y}; y += text_height;
-    Vec2i camera_status_target_text_position = {x, y}; y += text_height;
-    Vec2i camera_status_up_text_position = {x, y}; y += text_height;
-    y += text_height;
-    Vec2i current_lat_text_position = {x, y}; y += text_height;
-    Vec2i current_lon_text_position = {x, y}; y += text_height;
-    y+= text_height;
-    Vec2i derived_tile_text_position = {x, y}; y += text_height;
-
+    Vec2i textpos_current_latlon;
     Rect border;
+    const int text_height = 10;
     {
-        int end_x = screenWidth - 5;
-        int start_x = x0 - 10;
-        int w = end_x - start_x;
-        border = (Rect){.x = x0 - 10, .y = y0 - 10, .w = w, .h = y};
+        const int text_x = 670; // left
+        const int text_y = 5; // top
+
+        textpos_current_latlon.x = text_x;
+        textpos_current_latlon.y = text_y;
+
+        int start_x = text_x - 10;
+        int end_x   = screenWidth;
+        int start_y = 0;
+        int end_y   = text_y + text_height + 5;
+        border = (Rect){.x = start_x, .y = start_y, .w = end_x - start_x, .h = end_y - start_y};
     }
 
     Tiles tiles;
     tiles_init(&tiles, tilew, tileh, _topo_full.n, _color_full.n, &logger);
 
-    LatLon prev_position = {NAN, NAN};
+    LatLon prev_latlon = {NAN, NAN};
     bool ui_focused_prev = ui_focused;
     bool first_frame = true;
     bool second_frame = false;
@@ -293,8 +286,8 @@ int main() {
             }
         }
 
-        LatLon current_position = geotiff_x_y_to_lat_lon(camera.position.x, camera.position.z, topo_image_full.geo);
-        bool moved = !first_frame && 0 != memcmp(&current_position, &prev_position, sizeof(LatLon));
+        LatLon current_latlon = geotiff_x_y_to_lat_lon(camera.position.x, camera.position.z, topo_image_full.geo);
+        bool moved = !first_frame && 0 != memcmp(&current_latlon, &prev_latlon, sizeof(LatLon));
 
         int derived_tile_x_index = (int) floor(camera.position.x / tilew);
         int derived_tile_y_index = (int) floor(camera.position.z / tileh);
@@ -363,42 +356,11 @@ int main() {
                 //DrawRectangleLines(screenWidth - texture->width - 20, 20, texture->width, texture->height, GREEN);
             }
 
-
-            {
-                DrawRectangle     (border.x, border.y, border.w, border.h, Fade(WHITE, 0.8f));
-                DrawRectangleLines(border.x, border.y, border.w, border.h, BLACK);
-
-                DrawText("Camera status:",
-                    Vec2Unpack(camera_status_title_text_position),
-                    text_height,
-                    BLACK);
-                DrawText(TextFormat("- Position: (%6.3f, %6.3f, %6.3f)", camera.position.x, camera.position.y, camera.position.z),
-                    Vec2Unpack(camera_status_position_text_position),
-                    text_height,
-                    BLACK);
-                DrawText(TextFormat("- Target: (%6.3f, %6.3f, %6.3f)", camera.target.x, camera.target.y, camera.target.z),
-                    Vec2Unpack(camera_status_target_text_position),
-                    text_height,
-                    BLACK);
-                DrawText(TextFormat("- Up: (%6.3f, %6.3f, %6.3f)", camera.up.x, camera.up.y, camera.up.z),
-                    Vec2Unpack(camera_status_up_text_position),
-                    text_height,
-                    BLACK);
-
-                DrawText(TextFormat("Current Latitude: %0.6f", current_position.lat),
-                    Vec2Unpack(current_lat_text_position),
-                    text_height,
-                    BLACK);
-                DrawText(TextFormat("Current Longitude: %0.6f", current_position.lon),
-                    Vec2Unpack(current_lon_text_position),
-                    text_height,
-                    BLACK);
-
-                DrawText(TextFormat("Derived Tile Index: (%d, %d)", derived_tile_x_index, derived_tile_y_index),
-                    Vec2Unpack(derived_tile_text_position),
-                    text_height,
-                    BLACK);
-            }
+            DrawRectangle(border.x, border.y, border.w, border.h, Fade(BLACK, 0.6f));
+            DrawText(TextFormat("%0.6f, %0.6f", current_latlon.lat, current_latlon.lon),
+                Vec2Unpack(textpos_current_latlon),
+                text_height,
+                WHITE);
 
             if (drawTileDebug) {
                 for (int i = 0; i < arraylen(tiles.visible_tiles); ++i) {
@@ -457,14 +419,14 @@ int main() {
                         static LatLon new;
                         static bool initialized = false;
                         if (moved || !initialized) {
-                            new = current_position;
+                            new = current_latlon;
                             initialized = true;
                         }
                         igSetNextItemWidth(input_width);
                         igInputDouble("Latitude", &new.lat, 0, 0, "%.6f", ImGuiInputTextFlags_None);
                         igSetNextItemWidth(input_width);
                         igInputDouble("Longitude", &new.lon, 0, 0, "%.6f", ImGuiInputTextFlags_None);
-                        bool go_button_enabled = 0 != memcmp(&current_position, &new, sizeof(LatLon));
+                        bool go_button_enabled = 0 != memcmp(&current_latlon, &new, sizeof(LatLon));
                         igBeginDisabled(!go_button_enabled);
                         bool go_button_pressed = igButton("Go to Lat/Lon", (ImVec2){0,0});
                         igEndDisabled();
@@ -584,7 +546,7 @@ int main() {
 
         EndDrawing();
 
-        prev_position = current_position;
+        prev_latlon = current_latlon;
         ui_focused_prev = ui_focused;
         second_frame = first_frame;
         first_frame = false;
