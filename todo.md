@@ -1,4 +1,5 @@
 - ui
+  - debug pressing escape from within input field then ui defocus button -- keeps mouse visible, which is wrong, and causes camera to not be able to turn freely.
   - escape for toggle, and maybe minimize Debug window
   - update shortcuts. at least don't use F9-F12 because the debugger intercepts those
   - investigate imgui shortcuts.  does it look better than the key in parens like I have now?  is there some extra functionality that is useful?

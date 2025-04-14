@@ -190,7 +190,8 @@ int main() {
     };
 
 
-    SetTargetFPS(60);
+    const int target_fps = 60;
+    SetTargetFPS(target_fps);
 
     rlImGuiSetup(true);
 
@@ -226,23 +227,6 @@ int main() {
     const float rotationAngle = 0.0f;
     const Vector3 rotationAxis = { 0.0f, 1.0f, 0.0f };
     Vector3 vScale = { 1.0f, 0.2f, 1.0f }; // XXX 0.2 is to scale down the vertical in the Seattle region heightmap I'm using.  There's probably a definition of what the scaling should be somewhere and/or I need to think about it more.  (The scaling is initially controlled by the 'size' Vector3 passed to GenMeshHeightmap)
-
-    Vec2i textpos_current_latlon;
-    Rect border;
-    const int text_height = 10;
-    {
-        const int text_x = 670; // left
-        const int text_y = 5; // top
-
-        textpos_current_latlon.x = text_x;
-        textpos_current_latlon.y = text_y;
-
-        int start_x = text_x - 10;
-        int end_x   = screenWidth;
-        int start_y = 0;
-        int end_y   = text_y + text_height + 5;
-        border = (Rect){.x = start_x, .y = start_y, .w = end_x - start_x, .h = end_y - start_y};
-    }
 
     Tiles tiles;
     tiles_init(&tiles, tilew, tileh, _topo_full.n, _color_full.n, &logger);
@@ -356,13 +340,32 @@ int main() {
                 //DrawRectangleLines(screenWidth - texture->width - 20, 20, texture->width, texture->height, GREEN);
             }
 
-            DrawRectangle(border.x, border.y, border.w, border.h, Fade(BLACK, 0.6f));
-            DrawText(TextFormat("%0.6f, %0.6f", current_latlon.lat, current_latlon.lon),
-                Vec2Unpack(textpos_current_latlon),
-                text_height,
-                WHITE);
+            {
+                static const int pad_y = 3;
+                static const int text_y = 3; // top
+                static const int text_height = 10;
+                int fps = GetFPS();
+                DrawRectangle(0, 0, screenWidth, text_y + text_height + pad_y, Fade(BLACK, 0.8f));
+                DrawText(TextFormat("%2d", fps),
+                    5,
+                    text_y,
+                    text_height,
+                    fps < target_fps/4 ? RED : fps < target_fps/2 ? ORANGE : WHITE);
+                DrawText(TextFormat("%0.6f", current_latlon.lat),
+                    screenWidth - 130,
+                    text_y,
+                    text_height,
+                    WHITE);
+                DrawText(TextFormat("%0.6f", current_latlon.lon),
+                    screenWidth - 70,
+                    text_y,
+                    text_height,
+                    WHITE);
+            }
 
             if (drawTileDebug) {
+                static const int text_height = 10;
+
                 for (int i = 0; i < arraylen(tiles.visible_tiles); ++i) {
                     Tile* tile = tiles.visible_tiles[i];
                     Vec2i v = world_to_screen(
@@ -541,8 +544,6 @@ int main() {
             igEnd();
 
             rlImGuiEnd();
-
-            DrawFPS(10, 10);
 
         EndDrawing();
 
