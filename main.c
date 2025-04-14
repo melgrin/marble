@@ -217,11 +217,10 @@ int main() {
         {&drawTerrain,         KEY_ONE,  "drawTerrain (1)"},
         {&drawWires,           KEY_TWO,  "drawWires (2)", "Draw terrain wireframe"},
         {&drawTileDebug,       KEY_NULL, "drawTileDebug"},
-        {&showImGuiDemoWindow, KEY_F12,  "showImGuiDemoWindow (F12)"},
+        {&showImGuiDemoWindow, KEY_NULL, "showImGuiDemoWindow"},
     };
     const size_t keyboard_shortcuts_len = arraylen(keyboard_shortcuts);
-    KeyboardShortcut debug_window_key = {NULL, KEY_GRAVE, "backtick (`)"};
-    // note: imgui has SetNextItemShortcut, but I haven't tried it
+    KeyboardShortcut debug_window_key = {NULL, KEY_ESCAPE, "Escape"};
 
     Vector3 model_position = (Vector3){ tl.x, 0.0f, tl.y };
     const float rotationAngle = 0.0f;
