@@ -5,6 +5,8 @@ cd /D "%~dp0"
 
 if not exist build mkdir build
 
+set "compile_flags=-Z7"
+
 :::: libtiff
 
 :: note: there doesn't seem to be a way to exclude the write portions of the library during compilation.  would need to modify source.
@@ -49,7 +51,7 @@ for %%f in (%files%) do (
     set "objs=!objs! ./build/%%f.obj"
 )
 
-cl -nologo -c -I ./libtiff_config/ -Fo:./build/ %srcs%
+cl -nologo -c -I ./libtiff_config/ -Fo:./build/ %compile_flags% %srcs%
 if %errorlevel% neq 0 exit /b %errorlevel%
 
 lib -nologo -out:./build/libtiff.lib %objs%
@@ -59,10 +61,10 @@ if %errorlevel% neq 0 exit /b %errorlevel%
 :::: raylib
 
 set raylib_config_override=-I . -FI ./raylib_config/config.h
-cl -nologo -c %raylib_config_override% -Fo:./build/ -I ./raylib/src/ ^
+cl -nologo -c %raylib_config_override% -Fo:./build/ -I ./raylib/src/ %compile_flags% ^
     -I ./raylib/src/external/glfw/include -DPLATFORM_DESKTOP=1 ^
     ./raylib/src/rcore.c
-cl -nologo -c %raylib_config_override% -Fo:./build/ -I ./raylib/src/ ^
+cl -nologo -c %raylib_config_override% -Fo:./build/ -I ./raylib/src/ %compile_flags% ^
     ./raylib/src/rshapes.c ^
     ./raylib/src/rtextures.c ^
     ./raylib/src/rtext.c ^
@@ -98,6 +100,7 @@ cl -nologo -c -MT -EHsc ^
     -I ./rlImGui ^
     -I ./raylib/src ^
     -Fo:./build/ ^
+    %compile_flags% ^
     ./cimgui/imgui/imgui.cpp ^
     ./cimgui/imgui/imgui_demo.cpp ^
     ./cimgui/imgui/imgui_draw.cpp ^

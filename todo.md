@@ -1,6 +1,6 @@
 - ui
-  - debug pressing escape from within input field then ui defocus button causes two problems:  1) teleports view 2) keeps mouse visible, which causes camera to not be able to turn freely.
-  - can I put get this process's ram and vram usage and display it?
+  - debug pressing escape from within input field then ui defocus button causes two problems:  1) teleports view 2) keeps mouse visible, which causes camera to not be able to turn freely.  something to do with GLFW cursor mode.  step through ~5 frames to see it  erroneously go from DISABLED to NORMAL.  not sure why its that many frames.  I think rlImGuiBegin is maybe seeing the cursor update from my DisableCursor call, and that causes it to Show/Hide.
+  - can I get this process's ram and vram usage and display it? (no, you can only get overall vram usage, but you can get per-process ram, like task manager)
 - minimap
   - image
   - camera position
@@ -25,3 +25,7 @@
 - some visual issues with tile debug mode
   - blank black rectangle in the upper left of screen
   - black rectangles that show tile info disappear the moment the left edge goes off the screen
+
+- dedup color_image_full and _color_full
+- maybe use Img in GeoTIFFData
+
