@@ -52,5 +52,10 @@ popd
 
 @if %errorlevel% neq 0 exit /b %errorlevel%
 
+set "cwd=%cd%"
+call test\build.bat
+@if %errorlevel% neq 0 exit /b %errorlevel%
+cd /d "%cwd%"
+
 echo:
 echo %date% %time%

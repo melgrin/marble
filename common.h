@@ -13,6 +13,7 @@ typedef int16_t s16;
 typedef int32_t s32;
 typedef int64_t s64;
 
+typedef struct Vec2 { double x; double y; } Vec2;
 typedef struct Vec2i { int x; int y; } Vec2i;
 typedef struct Rect { int x; int y; int w; int h; } Rect;
 

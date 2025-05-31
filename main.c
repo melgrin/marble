@@ -433,9 +433,9 @@ int main() {
                         bool go_button_pressed = igButton("Go to Lat/Lon", (ImVec2){0,0});
                         igEndDisabled();
                         if (go_button_pressed) {
-                            Vector2 pos = geotiff_lat_lon_to_x_y(new.lat, new.lon, topo_image_full.geo);
-                            camera.position.x = pos.x;
-                            camera.position.z = pos.y;
+                            Vec2 pos = geotiff_lat_lon_to_x_y(new.lat, new.lon, topo_image_full.geo);
+                            camera.position.x = (float) pos.x;
+                            camera.position.z = (float) pos.y;
                         }
                     }
 

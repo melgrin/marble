@@ -1,6 +1,7 @@
 #include "./geotiff.h"
 #include "./common.h"
 #include <stdint.h>
+#include <assert.h>
 //#include <geotiff/xtiffio.h>  // for TIFF
 //#include <geotiff/geotiffio.h> // for GeoTIFF
 #include <tiffio.h>
@@ -136,7 +137,7 @@ Point2i geotiff_lat_lon_to_pixel(double lat, double lon, GeoTIFFMetadata geo) {
 }
 #endif
 
-Vector2 geotiff_lat_lon_to_x_y(double lat, double lon, GeoTIFFMetadata geo) {
+Vec2 geotiff_lat_lon_to_x_y(double lat, double lon, GeoTIFFMetadata geo) {
     double lat_tied = geo.tie_lat - lat;
     // top:    90 - 90 = 0
     // bottom: 90 - 0  = 90
@@ -151,7 +152,7 @@ Vector2 geotiff_lat_lon_to_x_y(double lat, double lon, GeoTIFFMetadata geo) {
 
     //printf("geotiff_lat_lon_to_x_y: lon %f -> x %f, lat %f -> y %f\n", lon, x, lat, y);
 
-    return (Vector2){(float) x, (float) y};
+    return (Vec2){x, y};
 }
 
 //LatLon geotiff_pixel_to_lat_lon(double x, double y, GeoTIFFMetadata geo)
