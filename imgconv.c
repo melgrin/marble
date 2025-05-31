@@ -203,12 +203,14 @@ end:
 
 #include "opt.c"
 
-int main(int argc, char** argv) {
+int main(const int argc, const char** argv) {
     int res = 0;
 
-    const char* usage = "imgconv [-W, --width X] [-H, --height Y] <output file extension> <input file path>"
-        "\n  -W, --width X     Width of output image, in pixels.  Default = same as input file."
-        "\n  -H, --height Y    Height of output image, in pixels.  Default = same as input file."
+    const char* usage = "imgconv [-W, --width X] [-H, --height Y] [-o, --output FILE] <output file type> <input file name>"
+        "\n  <output file type>   raw, qoi, png, jpg, bmp"
+        "\n  -W, --width X        Width of output image, in pixels.  Default = same as input file."
+        "\n  -H, --height Y       Height of output image, in pixels.  Default = same as input file."
+        "\n  -o, --output FILE    File name of output image.  Default = same basename as input file but with extension replaced, and placed in current working directory."
         ;
 
     bool help = false;
@@ -251,7 +253,14 @@ int main(int argc, char** argv) {
     }
 
     if (ext[0] == '.') ext++;
-    char* out = output_filename ? strdup(output_filename) : replace_extension(in, ext); // FIXME replace_extension retains the directory.  probably don't want that.  think of the children.  and think of gcc default behavior, where it puts the file in pwd.
+    const char* fs = strrchr(in, '/');
+    const char* bs = strrchr(in, '\\');
+    const char* start;
+    if (fs && bs) start = fs > bs ? fs + 1 : bs + 1;
+    else if (fs) start = fs + 1;
+    else if (bs) start = bs + 1;
+    else start = in;
+    char* out = output_filename ? strdup(output_filename) : replace_extension(start, ext); // strdup so it can always be freed
     printf("in:  %s\n", in);
     printf("out: %s\n", out);
     u8* data;

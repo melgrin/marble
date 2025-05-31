@@ -14,6 +14,7 @@
 - lat/lon usually aren't 1:1 proportional, but I'm pretending they are; image stretched, at least slightly
 - experiment with larger tile sizes or more tiles in pool
 - figure out correct height for terrain
+- externally-controlled position (via port, shmem, or similar)
 - handling for all image grids (A1, C2, etc)
   - download all?
   - disk space vs load time?

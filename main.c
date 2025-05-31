@@ -129,7 +129,7 @@ int main() {
     logger.file = fopen("local/log.txt", "ab");
     log_info(&logger, "\nsession start\n");
 
-    const char* color_image_filename = "local/gebco_08_rev_elev_A1_grey_geo.tif";
+    const char* color_image_filename = "deps/marble_data/topo/gebco_08_rev_elev_A1_grey_geo.tif";
     GeoTIFFData topo_image_full;
     if (!geotiff_read(color_image_filename, &topo_image_full)) return 1;
     printf("geo tie lat: %f\ngeo tie lon: %f\ngeo scale lat: %f\ngeo scale lon %f\n",
