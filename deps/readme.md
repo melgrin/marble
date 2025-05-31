@@ -23,3 +23,8 @@
 ## rlImGui
 - makes it easy to use dear imgui with raylib
 
+## marble_data
+- contains the third party data for this project (color and topography images)
+- easier than building TLS+SSL from source to download during build or first startup via HTTPS
+- but very large files, so they're stored in a separate repo to preserve this repo's historical size
+

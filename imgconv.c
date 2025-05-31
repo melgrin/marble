@@ -203,21 +203,25 @@ end:
 
 #include "opt.c"
 
-int main(int argc, char** argv) {
+int main(const int argc, const char** argv) {
     int res = 0;
 
-    const char* usage = "imgconv [-W, --width X] [-H, --height Y] <output file extension> <input file path>"
-        "\n  -W, --width X     Width of output image, in pixels.  Default = same as input file."
-        "\n  -H, --height Y    Height of output image, in pixels.  Default = same as input file."
+    const char* usage = "imgconv [-W, --width X] [-H, --height Y] [-o, --output FILE] <output file type> <input file name>"
+        "\n  <output file type>   raw, qoi, png, jpg, bmp"
+        "\n  -W, --width X        Width of output image, in pixels.  Default = same as input file."
+        "\n  -H, --height Y       Height of output image, in pixels.  Default = same as input file."
+        "\n  -o, --output FILE    File name of output image.  Default = same basename as input file but with extension replaced, and placed in current working directory."
         ;
 
     bool help = false;
     uint32_t width = 0;
     uint32_t height = 0;
+    const char* output_filename = NULL;
     struct option options[] = {
         { "-h", "--help", OPT_FLAG, &help },
         { "-W", "--width", OPT_UINT32, &width },
         { "-H", "--height", OPT_UINT32, &height },
+        { "-o", "--output", OPT_STRING, &output_filename },
     };
 
     int64_t loaded_mask = options_load(argc, argv, sizeof(options)/sizeof(options[0]), options);
@@ -249,7 +253,14 @@ int main(int argc, char** argv) {
     }
 
     if (ext[0] == '.') ext++;
-    char* out = replace_extension(in, ext);
+    const char* fs = strrchr(in, '/');
+    const char* bs = strrchr(in, '\\');
+    const char* start;
+    if (fs && bs) start = fs > bs ? fs + 1 : bs + 1;
+    else if (fs) start = fs + 1;
+    else if (bs) start = bs + 1;
+    else start = in;
+    char* out = output_filename ? strdup(output_filename) : replace_extension(start, ext); // strdup so it can always be freed
     printf("in:  %s\n", in);
     printf("out: %s\n", out);
     u8* data;
@@ -282,5 +293,4 @@ int main(int argc, char** argv) {
 }
 
 // TODO: check that output is a supported file extension before loading input, because images are large and take a while to load, only to find out that you were doomed the whole time.
-// TODO: option for output file name
 

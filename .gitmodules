@@ -16,3 +16,6 @@
 [submodule "deps/rlImGui"]
 	path = deps/rlImGui
 	url = https://github.com/raylib-extras/rlImGui
+[submodule "deps/marble_data"]
+	path = deps/marble_data
+	url = git@github.com:melgrin/marble_data.git

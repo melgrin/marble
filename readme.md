@@ -46,3 +46,7 @@ Subsequent builds:
 build.bat
 ```
 
+## Image Credits
+- Blue Marble Next Generation: Reto Stöckli, NASA Earth Observatory.
+- Topography: Imagery by Jesse Allen, NASA's Earth Observatory, using data from the General Bathymetric Chart of the Oceans (GEBCO) produced by the British Oceanographic Data Centre.
+

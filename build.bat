@@ -1,3 +1,4 @@
+@cd /d "%~dp0"
 @if not exist build mkdir build
 @if not exist build\bin mkdir build\bin
 @if not exist build\obj mkdir build\obj
@@ -32,13 +33,20 @@ cl -nologo -Z7 /Fe:build/bin/ /Fo:build/obj/ ^
 @echo off
 if not exist local mkdir local
 pushd local
-if not exist world.200405.3x10800x10800.A1.raw (
-    if not exist world.200405.3x21600x21600.A1.jpg (
-        curl -f -O https://eoimages.gsfc.nasa.gov/images/imagerecords/74000/74042/world.200405.3x21600x21600.A1.jpg
+:: resize to match topo image size and inflate to improve load times
+set w0=21600
+set h0=21600
+set w1=10800
+set h1=10800
+set bmng_jpg=..\deps\marble_data\bmng\world.200405.3x%w0%x%h0%.A1.jpg
+set bmng_raw=world.200405.3x%w1%x%h1%.A1.raw
+if not exist %bmng_raw% (
+    if not exist %bmng_jpg% (
+        echo "Error: missing image data.  Make sure that git submodules have been initialized.  Looking for %bmng_jpg% but it does not exist."
+        exit /b 1
     )
-    ..\build\bin\imgconv.exe raw world.200405.3x21600x21600.A1.jpg --width 10800 --height 10800
+    ..\build\bin\imgconv.exe raw %bmng_jpg% --width %w1% --height %h1% --output %bmng_raw%
     @if %errorlevel% neq 0 exit /b %errorlevel%
-    move world.200405.3x21600x21600.A1.raw world.200405.3x10800x10800.A1.raw
 )
 popd
 
