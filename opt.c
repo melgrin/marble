@@ -8,13 +8,14 @@
 typedef enum option_type {
     OPT_FLAG = 1,
     OPT_UINT32,
+    OPT_STRING,
 } option_type;
 
 typedef struct option {
     const char* short_name;
     const char* long_name;
     enum option_type type;
-    void* value;
+    const void* value;
 } option;
 
 int64_t options_load(const int argc, const char** argv, const int options_count, struct option* options) {
@@ -30,23 +31,34 @@ int64_t options_load(const int argc, const char** argv, const int options_count,
                 if (opt->type == OPT_FLAG) {
                     *(bool*)opt->value = true;
                     loaded_mask |= 1 << i;
-                } else {
+                } else if (opt->type == OPT_UINT32) {
                     if (i+1 == argc) {
                         printf("option %s requires an argument\n", argv[i]);
                         return -1;
                     }
                     loaded_mask |= 1 << i;
                     i += 1;
-                    const char* arg = argv[i];
                     char* end;
                     errno = 0;
-                    assert(opt->type == OPT_UINT32); // TODO
-                    unsigned long int value = strtoul(arg, &end, 10);
+                    unsigned long int value = strtoul(argv[i], &end, 10);
                     if (value == 0) return -1;
                     if (errno != 0) return errno;
-                    static_assert(sizeof(unsigned long) == sizeof(uint32_t), "non-64-bit platform? unimplemented");
+                    static_assert(sizeof(value) == sizeof(uint32_t), "non-64-bit platform? unimplemented");
                     *(uint32_t*)opt->value = value;
                     loaded_mask |= 1 << i;
+                } else if (opt->type == OPT_STRING) {
+                    if (i+1 == argc) {
+                        printf("option %s requires an argument\n", argv[i]);
+                        return -1;
+                    }
+                    loaded_mask |= 1 << i;
+                    i += 1;
+                    *(const char**)opt->value = argv[i];
+                    loaded_mask |= 1 << i;
+                } else {
+                    // TODO other int types, float types, others?
+                    printf("Error: unimplemented option type %d\n", opt->type);
+                    exit(1);
                 }
             }
         }

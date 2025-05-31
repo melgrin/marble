@@ -214,10 +214,12 @@ int main(int argc, char** argv) {
     bool help = false;
     uint32_t width = 0;
     uint32_t height = 0;
+    const char* output_filename = NULL;
     struct option options[] = {
         { "-h", "--help", OPT_FLAG, &help },
         { "-W", "--width", OPT_UINT32, &width },
         { "-H", "--height", OPT_UINT32, &height },
+        { "-o", "--output", OPT_STRING, &output_filename },
     };
 
     int64_t loaded_mask = options_load(argc, argv, sizeof(options)/sizeof(options[0]), options);
@@ -249,7 +251,7 @@ int main(int argc, char** argv) {
     }
 
     if (ext[0] == '.') ext++;
-    char* out = replace_extension(in, ext);
+    char* out = output_filename ? strdup(output_filename) : replace_extension(in, ext); // FIXME replace_extension retains the directory.  probably don't want that.  think of the children.  and think of gcc default behavior, where it puts the file in pwd.
     printf("in:  %s\n", in);
     printf("out: %s\n", out);
     u8* data;
@@ -282,5 +284,4 @@ int main(int argc, char** argv) {
 }
 
 // TODO: check that output is a supported file extension before loading input, because images are large and take a while to load, only to find out that you were doomed the whole time.
-// TODO: option for output file name
 
