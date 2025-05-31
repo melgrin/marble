@@ -3,13 +3,15 @@
 @if not exist build\obj mkdir build\obj
 
 :: raylib.lib needs to come before user32.lib, otherwise there's a symbol clash with "CloseWindow".
-@set libs=deps/build/raylib.lib deps/build/libtiff.lib gdi32.lib msvcrt.lib winmm.lib user32.lib shell32.lib
+@set libs=deps/build/raylib.lib deps/build/libtiff.lib deps/build/imgui.lib gdi32.lib msvcrt.lib winmm.lib user32.lib shell32.lib
 cl -nologo -W2 -Z7 -Fe:build/bin/ -Fo:build/obj/ ^
  -I deps/stb ^
  -I deps/qoi ^
  -I deps/raylib/src ^
  -I deps/libtiff_config ^
  -I deps/libtiff/libtiff ^
+ -I deps/cimgui ^
+ -I deps/rlImGui ^
  %* ^
  %libs% ^
  main.c ^

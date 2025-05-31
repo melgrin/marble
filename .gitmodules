@@ -10,3 +10,9 @@
 [submodule "deps/raylib"]
 	path = deps/raylib
 	url = https://github.com/raysan5/raylib
+[submodule "deps/cimgui"]
+	path = deps/cimgui
+	url = https://github.com/cimgui/cimgui
+[submodule "deps/rlImGui"]
+	path = deps/rlImGui
+	url = https://github.com/raylib-extras/rlImGui

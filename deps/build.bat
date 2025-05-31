@@ -5,6 +5,8 @@ cd /D "%~dp0"
 
 if not exist build mkdir build
 
+set "compile_flags=-Z7"
+
 :::: libtiff
 
 :: note: there doesn't seem to be a way to exclude the write portions of the library during compilation.  would need to modify source.
@@ -49,19 +51,20 @@ for %%f in (%files%) do (
     set "objs=!objs! ./build/%%f.obj"
 )
 
-cl -nologo -c -I ./libtiff_config/ -Fo:./build/ %srcs%
+cl -nologo -c -I ./libtiff_config/ -Fo:./build/ %compile_flags% %srcs%
 if %errorlevel% neq 0 exit /b %errorlevel%
 
 lib -nologo -out:./build/libtiff.lib %objs%
 if %errorlevel% neq 0 exit /b %errorlevel%
 
+
 :::: raylib
 
 set raylib_config_override=-I . -FI ./raylib_config/config.h
-cl -nologo -c %raylib_config_override% -Fo:./build/ -I ./raylib/src/ ^
+cl -nologo -c %raylib_config_override% -Fo:./build/ -I ./raylib/src/ %compile_flags% ^
     -I ./raylib/src/external/glfw/include -DPLATFORM_DESKTOP=1 ^
     ./raylib/src/rcore.c
-cl -nologo -c %raylib_config_override% -Fo:./build/ -I ./raylib/src/ ^
+cl -nologo -c %raylib_config_override% -Fo:./build/ -I ./raylib/src/ %compile_flags% ^
     ./raylib/src/rshapes.c ^
     ./raylib/src/rtextures.c ^
     ./raylib/src/rtext.c ^
@@ -71,12 +74,49 @@ cl -nologo -c %raylib_config_override% -Fo:./build/ -I ./raylib/src/ ^
 if %errorlevel% neq 0 exit /b %errorlevel%
 
 lib -nologo -out:./build/raylib.lib ^
-  ./build/rcore.obj ^
-  ./build/rshapes.obj ^
-  ./build/rtextures.obj ^
-  ./build/rtext.obj ^
-  ./build/rmodels.obj ^
-  ./build/utils.obj ^
-  ./build/rglfw.obj
+    ./build/rcore.obj ^
+    ./build/rshapes.obj ^
+    ./build/rtextures.obj ^
+    ./build/rtext.obj ^
+    ./build/rmodels.obj ^
+    ./build/utils.obj ^
+    ./build/rglfw.obj
+if %errorlevel% neq 0 exit /b %errorlevel%
+
+
+:::: imgui + cimgui + rlImGui
+
+:: -D IMGUI_DISABLE_OBSOLETE_FUNCTIONS - required otherwise DebugCheckVersionAndDataLayout fails: "Assertion failed: sz_io == sizeof(ImGuiIO) && "Mismatched struct layout!", file imgui\imgui.cpp, line 10390"
+:: -D CIMGUI_NO_EXPORT - static linking, so no need for this.  otherwise, creates .lib and .exp alongside .exe.
+:: -D CIMGUI_DEFINE_ENUMS_AND_STRUCTS - exposes C API of cimgui.  only use this when compiling C, not C++.
+:: -D NO_FONT_AWESOME - rlImGui - don't think I want extra fonts right now, no matter how awesome they are.
+
+cl -nologo -c -MT -EHsc ^
+    -D IMGUI_DISABLE_OBSOLETE_FUNCTIONS ^
+    -D CIMGUI_NO_EXPORT ^
+    -D NO_FONT_AWESOME ^
+    -I ./cimgui/imgui ^
+    -I ./cimgui ^
+    -I ./rlImGui ^
+    -I ./raylib/src ^
+    -Fo:./build/ ^
+    %compile_flags% ^
+    ./cimgui/imgui/imgui.cpp ^
+    ./cimgui/imgui/imgui_demo.cpp ^
+    ./cimgui/imgui/imgui_draw.cpp ^
+    ./cimgui/imgui/imgui_tables.cpp ^
+    ./cimgui/imgui/imgui_widgets.cpp ^
+    ./cimgui/cimgui.cpp ^
+    ./rlImGui/rlImGui.cpp
+if %errorlevel% neq 0 exit /b %errorlevel%
+
+lib -nologo -out:./build/imgui.lib ^
+    ./build/imgui.obj ^
+    ./build/imgui_demo.obj ^
+    ./build/imgui_draw.obj ^
+    ./build/imgui_tables.obj ^
+    ./build/imgui_widgets.obj ^
+    ./build/cimgui.obj ^
+    ./build/rlImGui.obj
 if %errorlevel% neq 0 exit /b %errorlevel%
 
