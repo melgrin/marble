@@ -38,7 +38,7 @@ bool my_mkdir(const char* path) {
 }
 
 bool file_exists(const char* path) {
-    printf("[info] file_exists %s\n", path);
+    printf("[info] file_exists? %s\n", path);
     struct stat buf;
     errno = 0;
     int res = stat(path, &buf);
@@ -112,6 +112,7 @@ bool my_chdir(const char* path) {
     return true;
 }
 
+// hello preprocessor string contatenation, my old friend...
 int main(int argc, char** argv) {
     if (argc != 1) {
         fprintf(stderr, "Error: expected 0 arguments but got %d.\n", argc);
@@ -125,11 +126,132 @@ int main(int argc, char** argv) {
         if (!my_chdir(my_dir)) return 1;
     }
 
-    // TODO build deps
+    // TODO? check if submodules have been cloned
 
-    my_mkdir("build");
-    my_mkdir("build/bin");
-    my_mkdir("build/obj");
+    // build dependencies only if needed (+10 seconds)
+    {
+        if (!my_chdir("deps")) return 1;
+
+        if (!my_mkdir("build")) return 1;
+
+#define DEPS_COMPILE_FLAGS "-Z7"
+
+        if (!file_exists("build/libtiff.lib")) {
+            // note: there doesn't seem to be a way to exclude the write portions of the library during compilation.  would need to modify source.
+            // TODO: disable more of the internal compression schemes in tiffconf.h and then remove the corresponding source files here.  the tiffs I'm loading are lzw, so I don't need luv, fax3, and maybe others.
+#define FILES(D, X) \
+            D "tif_open"      X " " \
+            D "tif_win32"     X " " \
+            D "tif_close"     X " " \
+            D "tif_dir"       X " " \
+            D "tif_strip"     X " " \
+            D "tif_read"      X " " \
+            D "tif_version"   X " " \
+            D "tif_dirread"   X " " \
+            D "tif_swab"      X " " \
+            D "tif_compress"  X " " \
+            D "tif_tile"      X " " \
+            D "tif_hash_set"  X " " \
+            D "tif_aux"       X " " \
+            D "tif_error"     X " " \
+            D "tif_warning"   X " " \
+            D "tif_codec"     X " " \
+            D "tif_dirinfo"   X " " \
+            D "tif_next"      X " " \
+            D "tif_lzw"       X " " \
+            D "tif_luv"       X " " \
+            D "tif_thunder"   X " " \
+            D "tif_fax3"      X " " \
+            D "tif_fax3sm"    X " " \
+            D "tif_write"     X " " \
+            D "tif_packbits"  X " " \
+            D "tif_dumpmode"  X " " \
+            D "tif_predict"   X " " \
+            D "tif_flush"     X " " \
+            D "tif_dirwrite"  X " " \
+            D "tif_getimage"  X " " \
+            D "tif_color"     X " " \
+            ""
+
+            if (!sys("cl -nologo -c -I ./libtiff_config/ -Fo:./build/ " DEPS_COMPILE_FLAGS " " FILES("./libtiff/libtiff/", ".c"))) return 1;
+            if (!sys("lib -nologo -out:./build/libtiff.lib " FILES("./build/", ".obj"))) return 1;
+
+#undef FILES
+        }
+
+        if (!file_exists("build/raylib.lib")) {
+#define RAYLIB_CONFIG_OVERRIDE "-I . -FI ./raylib_config/config.h"
+#ifndef _MSC_VER
+#error check for "force include (-FI)" equivalent on gcc - it's required.  it's how I'm replacing the pre-existing config.h in raylib repo with mine.  (I think normally they expect you to just edit it and have a dirty repo, but I like my repos clean...)
+#endif
+
+            if (!sys(
+                    "cl -nologo -c " RAYLIB_CONFIG_OVERRIDE " -Fo:./build/ -I ./raylib/src/ " DEPS_COMPILE_FLAGS
+                    " -I ./raylib/src/external/glfw/include -DPLATFORM_DESKTOP=1"
+                    " ./raylib/src/rcore.c"
+            )) return 1;
+
+            if (!sys(
+                    "cl -nologo -c " RAYLIB_CONFIG_OVERRIDE " -Fo:./build/ -I ./raylib/src/ " DEPS_COMPILE_FLAGS
+                    " ./raylib/src/rshapes.c"
+                    " ./raylib/src/rtextures.c"
+                    " ./raylib/src/rtext.c"
+                    " ./raylib/src/rmodels.c"
+                    " ./raylib/src/utils.c"
+                    " ./raylib/src/rglfw.c"
+            )) return 1;
+
+            if (!sys(
+                    "lib -nologo -out:./build/raylib.lib"
+                    " ./build/rcore.obj"
+                    " ./build/rshapes.obj"
+                    " ./build/rtextures.obj"
+                    " ./build/rtext.obj"
+                    " ./build/rmodels.obj"
+                    " ./build/utils.obj"
+                    " ./build/rglfw.obj"
+            )) return 1;
+        }
+
+        if (!file_exists("build/imgui.lib")) {
+            if (!sys(
+                    "cl -nologo -c -MT -EHsc"
+                    " -D IMGUI_DISABLE_OBSOLETE_FUNCTIONS" // required otherwise DebugCheckVersionAndDataLayout fails: "Assertion failed: sz_io == sizeof(ImGuiIO) && "Mismatched struct layout!", file imgui\imgui.cpp, line 10390".
+                    " -D CIMGUI_NO_EXPORT" // static linking, so no need for this.  otherwise, creates .lib and .exp alongside .exe.
+                    " -D NO_FONT_AWESOME" // rlImGui - don't think I want extra fonts right now, no matter how awesome they are.
+                    " -I ./cimgui/imgui"
+                    " -I ./cimgui"
+                    " -I ./rlImGui"
+                    " -I ./raylib/src"
+                    " -Fo:./build/"
+                    " " DEPS_COMPILE_FLAGS
+                    " ./cimgui/imgui/imgui.cpp"
+                    " ./cimgui/imgui/imgui_demo.cpp"
+                    " ./cimgui/imgui/imgui_draw.cpp"
+                    " ./cimgui/imgui/imgui_tables.cpp"
+                    " ./cimgui/imgui/imgui_widgets.cpp"
+                    " ./cimgui/cimgui.cpp"
+                    " ./rlImGui/rlImGui.cpp"
+            )) return 1;
+
+            if (!sys(
+                    "lib -nologo -out:./build/imgui.lib"
+                    " ./build/imgui.obj"
+                    " ./build/imgui_demo.obj"
+                    " ./build/imgui_draw.obj"
+                    " ./build/imgui_tables.obj"
+                    " ./build/imgui_widgets.obj"
+                    " ./build/cimgui.obj"
+                    " ./build/rlImGui.obj"
+            )) return 1;
+        }
+
+        if (!my_chdir("..")) return 1;
+    }
+
+    if (!my_mkdir("build")) return 1;
+    if (!my_mkdir("build/bin")) return 1;
+    if (!my_mkdir("build/obj")) return 1;
 
     const char* build_main = 
         "cl -nologo -W2 -Z7 -Fe:build/bin/marble.exe -Fo:build/obj/ "
@@ -171,7 +293,7 @@ int main(int argc, char** argv) {
 #define bmng_jpg "./deps/marble_data/bmng/world.200405.3x"w0"x"h0".A1.jpg"
 #define bmng_raw "./local/world.200405.3x"w1"x"h1".A1.raw"
 
-    // generating this file is slow, so only do it if necessary
+    // generating this file is slow, so only do it if necessary (+20 seconds)
     if (!file_exists(bmng_raw)) {
         if (!file_exists(bmng_jpg)) {
             fprintf(stderr, "Error: missing image data.  Make sure that git submodules have been initialized.  Looking for %s but it does not exist.", bmng_jpg);

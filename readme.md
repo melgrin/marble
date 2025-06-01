@@ -18,9 +18,6 @@ First build:
 ```
 git submodule update --init --recursive
 vcvarsall x64
-cd deps
-build.bat
-cd ..
 cl build.c
 build.exe
 ```
