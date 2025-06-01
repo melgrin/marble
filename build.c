@@ -183,8 +183,24 @@ int main(int argc, char** argv) {
     }
 
 
-    // TODO replace batch file
-    if (!sys("cmd.exe /c test\\build.bat")) return 1;
+    // build and run tests
+    {
+        if (!my_chdir("test")) return 1;
+
+        if (!sys("cl -nologo -W2 -Z7 opt.c")) return 1;
+
+        if (!sys(
+            "cl -nologo -W2 -Z7"
+            " -I ../deps/libtiff_config"
+            " -I ../deps/libtiff/libtiff"
+            " ../deps/build/libtiff.lib"
+            " geotiff.c"
+        )) return 1;
+
+        if (!sys("opt")) return 1;
+
+        if (!sys("geotiff")) return 1;
+    }
 
 
     return 0;
