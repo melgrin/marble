@@ -9,7 +9,8 @@
 //#include <sys/types.h>
 
 #if _WIN32
-#include <direct.h> // mkdir, _mkdir
+#include <direct.h> // mkdir
+#include <process.h> // spawnl
 #endif
 
 bool my_mkdir(const char* path) {
@@ -75,6 +76,20 @@ bool my_dirname(const char* path, char* buf, size_t bufsize) {
     } else {
         return false;
     }
+}
+
+// `system` doesn't work well on Windows if you pass forward slashes in the program name (build/bin/imgconv.exe results in system running build.exe!)
+bool my_spawn(const char* program_name, const char** args) {
+#if _WIN32
+    intptr_t exit_status = spawnv(P_WAIT, program_name, args);
+    if (exit_status != 0) {
+        fprintf(stderr, "%s subproces failed\n", program_name);
+        return false;
+    }
+    return true;
+#else
+#error my_spawn unimplemented on this platform
+#endif
 }
 
 bool sys(const char* cmd) {
@@ -156,21 +171,15 @@ int main(int argc, char** argv) {
 #define bmng_jpg "./deps/marble_data/bmng/world.200405.3x"w0"x"h0".A1.jpg"
 #define bmng_raw "./local/world.200405.3x"w1"x"h1".A1.raw"
 
-    // TODO to avoid this nonsense, try creating a subprocess to avoid whatever is happening in `system`.  It seems like if I give any forward slashes in the program name, it gets confused, and then it calls build.exe (this program) instead of build/bin/imgconv.exe in the build directory...
-    //      alternative: #include "imgconv.c" (with a renamed main) and call it from this program instead of compiling the .exe and calling it as a subprocess.
-#if _WIN32
-#define imgconv_cmd ".\\build\\bin\\imgconv.exe raw "bmng_jpg" --width "w1" --height "h1" --output "bmng_raw
-#else
-#define imgconv_cmd "./build/bin/imgconv.exe raw "bmng_jpg" --width "w1" --height "h1" --output "bmng_raw
-#endif
-
     // generating this file is slow, so only do it if necessary
     if (!file_exists(bmng_raw)) {
         if (!file_exists(bmng_jpg)) {
             fprintf(stderr, "Error: missing image data.  Make sure that git submodules have been initialized.  Looking for %s but it does not exist.", bmng_jpg);
             return 1;
         }
-        if (!sys(imgconv_cmd)) return 1;
+        const char* imgconv = "build/bin/imgconv";
+        const char* args[] = {imgconv, "raw", bmng_jpg, "--width", w1, "--height", h1, "--output", bmng_raw, NULL};
+        if (!my_spawn(imgconv, args)) return 1;
     }
 
 
