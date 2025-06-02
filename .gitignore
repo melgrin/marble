@@ -1,3 +1,7 @@
 build
 local
 imgui.ini
+*.exe
+*.obj
+*.ilk
+*.pdb

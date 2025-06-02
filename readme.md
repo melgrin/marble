@@ -18,15 +18,13 @@ First build:
 ```
 git submodule update --init --recursive
 vcvarsall x64
-cd deps
-build.bat
-cd ..
-build.bat
+cl build.c
+build.exe
 ```
 
 Subsequent builds:
 ```
-build.bat
+build.exe
 ```
 
 
