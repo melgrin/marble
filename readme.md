@@ -2,6 +2,14 @@
 
 Low-fidelity topographical 3D earth surface viewer
 
+![view](https://raw.githubusercontent.com/melgrin/marble_data/refs/heads/main/marble_samples/view.png)
+
+![grid](https://raw.githubusercontent.com/melgrin/marble_data/refs/heads/main/marble_samples/grid.png)
+
+![buzz](https://github.com/melgrin/marble_data/raw/refs/heads/main/marble_samples/buzz.webp)
+
+![melt](https://github.com/melgrin/marble_data/raw/refs/heads/main/marble_samples/melt.webp)
+
 
 ## References
 
