@@ -129,9 +129,9 @@ int main() {
     logger.file = fopen("local/log.txt", "ab");
     log_info(&logger, "\nsession start\n");
 
-    const char* color_image_filename = "deps/marble_data/topo/gebco_08_rev_elev_A1_grey_geo.tif";
+    const char* topo_image_filename = "deps/marble_data/topo/gebco_08_rev_elev_A1_grey_geo.tif";
     GeoTIFFData topo_image_full;
-    if (!geotiff_read(color_image_filename, &topo_image_full)) return 1;
+    if (!geotiff_read(topo_image_filename, &topo_image_full)) return 1;
     printf("geo tie lat: %f\ngeo tie lon: %f\ngeo scale lat: %f\ngeo scale lon %f\n",
         topo_image_full.geo.tie_lat, topo_image_full.geo.tie_lon,
         topo_image_full.geo.scale_lat, topo_image_full.geo.scale_lon);
@@ -164,8 +164,8 @@ int main() {
         camera.position.z == camera.target.z));
 
 
-    const char* topo_image_filename = "local/world.200405.3x10800x10800.A1.raw";
-    Img color_image_full = load_image(topo_image_filename);
+    const char* color_image_filename = "local/world.200405.3x10800x10800.A1.raw";
+    Img color_image_full = load_image(color_image_filename);
     if (color_image_full.w != topo_image_full.width ||
         color_image_full.h != topo_image_full.height) {
         printf("Image size mismatch: color image is %ux%u, topo image is %ux%u.\n", color_image_full.w, color_image_full.h, topo_image_full.width, topo_image_full.height);
