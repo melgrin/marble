@@ -1,3 +1,4 @@
+#include <stdbool.h>
 #include "./common.h"
 
 typedef struct {
@@ -8,9 +9,13 @@ typedef struct {
     u8 channels;
 } RawImageInfo;
 
+bool raw_read(const char* filename, u8** pdata, RawImageInfo* pinfo);
+bool raw_write(const char* filename, u8* data, u32 width, u32 height, u8 channels);
+
+#ifdef RAW_FILE_IMPLEMENTATION
+
 #include <stdio.h>
 #include <stdlib.h>
-#include <stdbool.h>
 #include <string.h>
 
 static bool read_entire_file(const char* filename, unsigned char** contents, size_t* length, int* perr, const char** pmsg) {
@@ -172,3 +177,6 @@ end:
     if (file) fclose(file);
     return res;
 }
+
+#endif // RAW_FILE_IMPLEMENTATION
+

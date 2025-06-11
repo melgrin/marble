@@ -10,19 +10,25 @@
 #include <assert.h>
 #include <stdbool.h>
 
-
+#if MAIN
 #define STB_IMAGE_IMPLEMENTATION
+#define STB_IMAGE_WRITE_IMPLEMENTATION
+#define STB_IMAGE_RESIZE_IMPLEMENTATION
+#define RAW_FILE_IMPLEMENTATION
+#endif
+
 #define STBI_FAILURE_USERMSG
 #include <stb_image.h>
 
-#define STB_IMAGE_WRITE_IMPLEMENTATION
 #include <stb_image_write.h>
 
-#define STB_IMAGE_RESIZE_IMPLEMENTATION
 #include <stb_image_resize2.h>
 
-#define QOI_IMPLEMENTATION
 #include <qoi.h>
+#ifndef QOI_PIXELS_MAX
+// This is a copy from qoi.h, in the QOI_IMPLEMENTATION section.  This is the only thing I need from there, and defining QOI_IMPLEMENTATION causes more conflicts downstream with this main, marble main, and raylib.
+#define QOI_PIXELS_MAX ((unsigned int)400000000)
+#endif
 
 #include "common.h"
 
@@ -201,10 +207,54 @@ end:
     return res;
 }
 
+bool imgconv(const char* in, const char* ext, uint32_t width, uint32_t height, const char* optional_output_filename) {
+    int res = 0;
+
+    if (ext[0] == '.') ext++;
+    const char* fs = strrchr(in, '/');
+    const char* bs = strrchr(in, '\\');
+    const char* start;
+    if (fs && bs) start = fs > bs ? fs + 1 : bs + 1;
+    else if (fs) start = fs + 1;
+    else if (bs) start = bs + 1;
+    else start = in;
+    char* out = optional_output_filename ? strdup(optional_output_filename) : replace_extension(start, ext); // strdup so it can always be freed
+    printf("in:  %s\n", in);
+    printf("out: %s\n", out);
+    u8* data;
+    u32 w, h, n;
+    if (read_image(in, &data, &w, &h, &n)) {
+
+        if (width <= 0) width = w;
+        if (height <= 0) height = h;
+
+        if (width != w || height != h) {
+            u8* rsz;
+            if (resize_image(data, w, h, &rsz, width, height, n)) {
+                if (write_image(out, rsz, width, height, n)) {
+                    printf("OK: %s -> %s\n", in, out);
+                } else res++;
+                free(rsz);
+            } else res++;
+
+        } else {
+            if (write_image(out, data, w, h, n)) {
+                printf("OK: %s -> %s\n", in, out);
+            } else res++;
+        }
+
+        free(data);
+    } else res++;
+    free(out);
+
+    return res == 0;
+}
+
+#if MAIN
+
 #include "opt.c"
 
 int main(const int argc, const char** argv) {
-    int res = 0;
 
     const char* usage = "imgconv [-W, --width X] [-H, --height Y] [-o, --output FILE] <output file type> <input file name>"
         "\n  <output file type>   raw, qoi, png, jpg, bmp"
@@ -252,45 +302,11 @@ int main(const int argc, const char** argv) {
         return 1;
     }
 
-    if (ext[0] == '.') ext++;
-    const char* fs = strrchr(in, '/');
-    const char* bs = strrchr(in, '\\');
-    const char* start;
-    if (fs && bs) start = fs > bs ? fs + 1 : bs + 1;
-    else if (fs) start = fs + 1;
-    else if (bs) start = bs + 1;
-    else start = in;
-    char* out = output_filename ? strdup(output_filename) : replace_extension(start, ext); // strdup so it can always be freed
-    printf("in:  %s\n", in);
-    printf("out: %s\n", out);
-    u8* data;
-    u32 w, h, n;
-    if (read_image(in, &data, &w, &h, &n)) {
-
-        if (width <= 0) width = w;
-        if (height <= 0) height = h;
-
-        if (width != w || height != h) {
-            u8* rsz;
-            if (resize_image(data, w, h, &rsz, width, height, n)) {
-                if (write_image(out, rsz, width, height, n)) {
-                    printf("OK: %s -> %s\n", in, out);
-                } else res++;
-                free(rsz);
-            } else res++;
-
-        } else {
-            if (write_image(out, data, w, h, n)) {
-                printf("OK: %s -> %s\n", in, out);
-            } else res++;
-        }
-
-        free(data);
-    } else res++;
-    free(out);
-
-    return res;
+    bool ok = imgconv(in, ext, width, height, output_filename);
+    return ok ? 0 : 1;
 }
+
+#endif // MAIN
 
 // TODO: check that output is a supported file extension before loading input, because images are large and take a while to load, only to find out that you were doomed the whole time.
 

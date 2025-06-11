@@ -20,6 +20,8 @@
 //#define QOI_IMPLEMENTATION // raylib defines this
 #include <qoi.h>
 
+#define RAW_FILE_IMPLEMENTATION
+
 #include "./common.c"
 #include "./geotiff.c"
 #include "./raw_file.c"
@@ -27,6 +29,18 @@
 #include "./world_to_screen.c"
 #include "./logger.c"
 #include "./tiles.c"
+#include "./file.c"
+
+int calc_cksum(const char* filename) {
+    // TODO
+    return 0;
+}
+int load_cached_cksum(const char* filename) {
+    // TODO
+    // filename + ".cksum"
+    // fread
+    return 0;
+}
 
 
 static Img load_image(const char* filename) {
@@ -164,7 +178,36 @@ int main() {
         camera.position.z == camera.target.z));
 
 
-    const char* color_image_filename = "local/world.200405.3x10800x10800.A1.raw";
+    const uint32_t w0 = 21600;
+    const uint32_t h0 = 21600;
+    const uint32_t w1 = 10800;
+    const uint32_t h1 = 10800;
+    char bmng_jpg[256] = {0};
+    char bmng_raw[256] = {0};
+    snprintf(bmng_jpg, sizeof(bmng_jpg), "deps/marble_data/bmng/world.200405.3x%dx%d.A1.jpg", w0, h0);
+    snprintf(bmng_raw, sizeof(bmng_raw), "local/world.200405.3x%dx%d.A1.raw", w1, h1); // TODO move to build/data
+
+    {
+        bool need_raw = false;
+        if (file_exists(bmng_jpg)) {
+            int current = calc_cksum(bmng_jpg);
+            int previous = load_cached_cksum(bmng_jpg);
+            if (current != previous) {
+                need_raw = true;
+            }
+        } else {
+            need_raw = true;
+        }
+
+        if (need_raw) {
+            if (!imgconv(bmng_jpg, ".raw", w1, h1, bmng_raw)) {
+                printf("Failed to convert %s to %s (width %u, height %u)\n", bmng_jpg, bmng_raw, w1, h1);
+                exit(1);
+            }
+        }
+    }
+
+    const char* color_image_filename = bmng_raw;
     Img color_image_full = load_image(color_image_filename);
     if (color_image_full.w != topo_image_full.width ||
         color_image_full.h != topo_image_full.height) {

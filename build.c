@@ -13,6 +13,8 @@
 #include <process.h> // spawnl
 #endif
 
+#include "./file.c"
+
 bool my_mkdir(const char* path) {
     printf("[info] mkdir %s\n", path);
     struct stat buf;
@@ -34,25 +36,6 @@ bool my_mkdir(const char* path) {
         }
         fprintf(stderr, "Error: wanted to make directory '%s', but it already exists as a file.\n", path);
         return false;
-    }
-}
-
-bool file_exists(const char* path) {
-    printf("[info] file_exists? %s\n", path);
-    struct stat buf;
-    errno = 0;
-    int res = stat(path, &buf);
-    if (errno == ENOENT) {
-        return false;
-    } else if (res == -1) {
-        fprintf(stderr, "Error: failed to get information for '%s': %s\n", path, strerror(errno));
-        return false;
-    } else {
-        if (buf.st_mode & S_IFREG) {
-            return true;
-        } else {
-            return false;
-        }
     }
 }
 
@@ -253,6 +236,16 @@ int main(int argc, char** argv) {
     if (!my_mkdir("build/bin")) return 1;
     if (!my_mkdir("build/obj")) return 1;
 
+
+    if (!sys("cl -c -nologo -Z7 -Fo:build/obj/"
+        " -I deps/stb"
+        " -I deps/qoi"
+        " -I deps/libtiff_config"
+        " -I deps/libtiff/libtiff"
+        " imgconv.c"
+    )) return 1;
+
+
     const char* build_main = 
         "cl -nologo -W2 -Z7 -Fe:build/bin/marble.exe -Fo:build/obj/ "
         " -I deps/stb"
@@ -262,6 +255,7 @@ int main(int argc, char** argv) {
         " -I deps/libtiff/libtiff"
         " -I deps/cimgui"
         " -I deps/rlImGui"
+        " build/obj/imgconv.obj"
         // raylib.lib needs to come before user32.lib, otherwise there's a symbol clash with "CloseWindow".
         " deps/build/raylib.lib deps/build/libtiff.lib deps/build/imgui.lib"
         " gdi32.lib msvcrt.lib winmm.lib user32.lib shell32.lib" 
@@ -272,12 +266,21 @@ int main(int argc, char** argv) {
     if (!sys(build_main)) return 1;
 
 
+    if (!sys("cl -c -nologo -Z7 -Fo:build/obj/"
+        " -I deps/qoi"
+        " -TC" // force .c
+        " -D QOI_IMPLEMENTATION"
+        " deps/qoi/qoi.h"
+    )) return 1;
+
     const char* build_imgconv = 
         "cl -nologo -Z7 -Fe:build/bin/ -Fo:build/obj/"
+        " -D MAIN"
         " -I deps/stb"
         " -I deps/qoi"
         " -I deps/libtiff_config"
         " -I deps/libtiff/libtiff"
+        " build/obj/qoi.obj"
         " deps/build/libtiff.lib"
         " imgconv.c"
         ;
