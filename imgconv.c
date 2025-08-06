@@ -108,7 +108,7 @@ bool read_image(const char* filename, u8** pdata, u32* pwidth, u32* pheight, u32
     }
 
     double elapsed = get_time() - t0;
-    printf("done in %.3f seconds; %u x %u, %u channels\n", elapsed, w, h, n);
+    printf("done in %.3f seconds; %u x %u, %u channels - %s\n", elapsed, w, h, n, filename);
 
     if (pdata) *pdata = data;
     if (pwidth) *pwidth = w;
@@ -194,7 +194,7 @@ end:
     return res;
 }
 
-bool imgconv(const char* in, const char* ext, uint32_t width, uint32_t height, const char* optional_output_filename) {
+bool imgconv(const char* in, const char* ext, u32 width, u32 height, const char* optional_output_filename) {
     int res = 0;
 
     if (ext[0] == '.') ext++;

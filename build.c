@@ -66,7 +66,7 @@ bool my_spawn(const char* program_name, const char** args) {
 #if _WIN32
     intptr_t exit_status = spawnv(P_WAIT, program_name, args);
     if (exit_status != 0) {
-        fprintf(stderr, "%s subproces failed\n", program_name);
+        fprintf(stderr, "%s subprocess failed\n", program_name);
         return false;
     }
     return true;
@@ -176,8 +176,13 @@ int main(int argc, char** argv) {
 
             if (!sys(
                     "cl -nologo -c " RAYLIB_CONFIG_OVERRIDE " -Fo:./build/ -I ./raylib/src/ " DEPS_COMPILE_FLAGS
-                    " ./raylib/src/rshapes.c"
+                    " -DSUPPORT_FILEFORMAT_JPG" // this is a workaround to deconflict the version of stbi_load_image that's used in main via imgconv.  it needs to be able to load jpgs, but raylib disables it by default.  and I need raylib's implementation of stb_image so that raylib works.  the right solution is to use dlls to separate raylib from the rest of marble (there are a number of spots they overlap, or may in the future, like stb, qoi, glfw).  raylib tends to fork or configure the library for its own uses.  but dlls are more work, so doing this for now.  TODO.
                     " ./raylib/src/rtextures.c"
+            )) return 1;
+
+            if (!sys(
+                    "cl -nologo -c " RAYLIB_CONFIG_OVERRIDE " -Fo:./build/ -I ./raylib/src/ " DEPS_COMPILE_FLAGS
+                    " ./raylib/src/rshapes.c"
                     " ./raylib/src/rtext.c"
                     " ./raylib/src/rmodels.c"
                     " ./raylib/src/utils.c"
@@ -300,6 +305,8 @@ int main(int argc, char** argv) {
 
     my_mkdir("local");
 
+#if 0
+
 #define w0 "21600"
 #define h0 "21600"
 #define w1 "10800"
@@ -317,6 +324,8 @@ int main(int argc, char** argv) {
         const char* args[] = {imgconv, "raw", bmng_jpg, "--width", w1, "--height", h1, "--output", bmng_raw, NULL};
         if (!my_spawn(imgconv, args)) return 1;
     }
+
+#endif
 
 
     // build and run tests

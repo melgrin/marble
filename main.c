@@ -4,6 +4,7 @@
 #include <string.h> // memcpy
 #include <math.h> // floor
 
+#define SUPPORT_FILEFORMAT_JPG
 #include <raylib.h>
 
 #define CIMGUI_DEFINE_ENUMS_AND_STRUCTS
@@ -33,62 +34,14 @@
 #include "./tiles.c"
 #include "./file.c"
 
-int calc_cksum(const char* filename) {
-    // TODO
-    return 0;
-}
-int load_cached_cksum(const char* filename) {
-    // TODO
-    // filename + ".cksum"
-    // fread
-    return 0;
-}
-
 
 static Img load_image(const char* filename) {
-    double t0 = GetTime();
-
-    const char* ext = strrchr(filename, '.');
-    if (!ext) exit(1);
-
     u8* data;
     u32 w, h, n;
-    if (0 == strcmp(ext, ".raw")) {
-        RawImageInfo info;
-        if (!raw_read(filename, &data, &info)) {
-            printf("Failed to load %s\n", filename);
-            exit(1);
-        }
-        w = info.width;
-        h = info.height;
-        n = info.channels;
-    } else if (0 == strcmp(ext, ".qoi")) {
-        qoi_desc desc;
-        void* mem = qoi_read(filename, &desc, 0);
-        if (!mem) {
-            printf("Failed to load %s\n", filename);
-            exit(1);
-        }
-        data = mem;
-        w = desc.width;
-        h = desc.height;
-        n = desc.channels;
-    } else {
-        int x, y, comp;
-        data = stbi_load(filename, &x, &y, &comp, 0);
-        if (!data) {
-            printf("Failed to load %s: %s\n", filename, stbi_failure_reason());
-            exit(1);
-        }
-        assert(x > 0);
-        assert(y > 0);
-        w = (u32) x;
-        h = (u32) y;
-        n = (u32) comp;
-    }
 
-    double elapsed = GetTime() - t0;
-    printf("loaded %s in %.3f seconds; %u x %u, num channels = %u\n", filename, elapsed, w, h, n);
+    if (!read_image(filename, &data, &w, &h, &n)) {
+        exit(1);
+    }
 
     assert(n == 1 || n == 2 || n == 3 || n == 4);
 
@@ -190,17 +143,7 @@ int main() {
     snprintf(bmng_raw, sizeof(bmng_raw), "local/world.200405.3x%dx%d.A1.raw", w1, h1); // TODO move to build/data
 
     {
-        bool need_raw = false;
-        if (file_exists(bmng_jpg)) {
-            int current = calc_cksum(bmng_jpg);
-            int previous = load_cached_cksum(bmng_jpg);
-            if (current != previous) {
-                need_raw = true;
-            }
-        } else {
-            need_raw = true;
-        }
-
+        bool need_raw = file_exists(bmng_jpg) && !file_exists(bmng_raw);
         if (need_raw) {
             if (!imgconv(bmng_jpg, ".raw", w1, h1, bmng_raw)) {
                 printf("Failed to convert %s to %s (width %u, height %u)\n", bmng_jpg, bmng_raw, w1, h1);
