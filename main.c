@@ -22,7 +22,9 @@
 
 #define RAW_FILE_IMPLEMENTATION
 
-#include "./common.c"
+#include "./common.h"
+#include "./imgconv.h"
+
 #include "./geotiff.c"
 #include "./raw_file.c"
 #include "./camera.c"
@@ -265,7 +267,7 @@ int main() {
     const size_t keyboard_shortcuts_len = arraylen(keyboard_shortcuts);
     KeyboardShortcut debug_window_key = {NULL, KEY_ESCAPE, "Escape"};
 
-    Vector3 model_position = (Vector3){ tl.x, 0.0f, tl.y };
+    //Vector3 model_position = (Vector3){ tl.x, 0.0f, tl.y };
     const float rotationAngle = 0.0f;
     const Vector3 rotationAxis = { 0.0f, 1.0f, 0.0f };
     Vector3 vScale = { 1.0f, 0.2f, 1.0f }; // XXX 0.2 is to scale down the vertical in the Seattle region heightmap I'm using.  There's probably a definition of what the scaling should be somewhere and/or I need to think about it more.  (The scaling is initially controlled by the 'size' Vector3 passed to GenMeshHeightmap)
@@ -514,8 +516,8 @@ int main() {
                         bool go_button_pressed = igButton("Go to tile x/y index", (ImVec2){0,0});
                         igEndDisabled();
                         if (go_button_pressed) {
-                            camera.position.x = new_x_index * tilew + tilew/2.0;
-                            camera.position.z = new_y_index * tileh + tileh/2.0;
+                            camera.position.x = new_x_index * tilew + ((float)tilew)/2.0f;
+                            camera.position.z = new_y_index * tileh + ((float)tileh)/2.0f;
                         }
                     }
 

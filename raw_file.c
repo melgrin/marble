@@ -17,71 +17,7 @@ bool raw_write(const char* filename, u8* data, u32 width, u32 height, u8 channel
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-
-static bool read_entire_file(const char* filename, unsigned char** contents, size_t* length, int* perr, const char** pmsg) {
-    bool res = false;
-    int err = 0;
-    const char* msg = "";
-    void* data = NULL;
-
-    *contents = NULL;
-    *length = 0;
-
-    FILE* file = fopen(filename, "rb");
-    if (file == NULL) {
-        err = errno;
-        msg = "fopen";
-        goto end;
-    }
-
-    fseek(file, 0, SEEK_END);
-    long len = ftell(file);
-    if (len < 0) {
-        err = errno;
-        msg = "ftell";
-        goto end;
-    }
-    if (len == 0) {
-        err = 0;
-        msg = "zero length";
-        goto end;
-    }
-    fseek(file, 0, SEEK_SET);
-
-    size_t bytes = len + 1; // + 1 for null terminator
-    data = malloc(bytes);
-    if (data == NULL) {
-        //fprintf(stderr, "read_entire_file: failed to allocate memory; wanted %ld bytes, but got error: %s\n", len, strerror(errno));
-        err = errno;
-        msg = "malloc";
-        goto end;
-    }
-    //memset(data, 0, bytes);
-
-    size_t nr = fread(data, 1, len, file);
-    if (ferror(file)) {
-        err = errno;
-        msg = "fread";
-        goto end;
-    }
-    if (nr != len) {
-        //fprintf(stderr, "read_entire_file: failed to read the entire file %s; wanted %ld bytes, but read %zu\n", filename, len, nr);
-        err = 0; // (int) nr;
-        msg = "read size mismatch";
-        goto end;
-    }
-    *contents = (unsigned char*) data;
-    *length = len;
-
-    res = true;
-end:
-    if (data && !res) free(data);
-    if (file) fclose(file);
-    if (perr) *perr = err;
-    if (pmsg) *pmsg = msg;
-    return res;
-}
-
+#include "./file.c"
 
 static bool read32(u8** pos, size_t* rem, u32* out) {
     if (!pos || !rem || !out) return false;

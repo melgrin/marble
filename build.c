@@ -117,7 +117,7 @@ int main(int argc, char** argv) {
 
         if (!my_mkdir("build")) return 1;
 
-#define DEPS_COMPILE_FLAGS "-Z7"
+#define DEPS_COMPILE_FLAGS " -Z7 "
 
         if (!file_exists("build/libtiff.lib")) {
             // note: there doesn't seem to be a way to exclude the write portions of the library during compilation.  would need to modify source.
@@ -207,7 +207,7 @@ int main(int argc, char** argv) {
                     " -I ./rlImGui"
                     " -I ./raylib/src"
                     " -Fo:./build/"
-                    " " DEPS_COMPILE_FLAGS
+                    DEPS_COMPILE_FLAGS
                     " ./cimgui/imgui/imgui.cpp"
                     " ./cimgui/imgui/imgui_demo.cpp"
                     " ./cimgui/imgui/imgui_draw.cpp"
@@ -236,8 +236,15 @@ int main(int argc, char** argv) {
     if (!my_mkdir("build/bin")) return 1;
     if (!my_mkdir("build/obj")) return 1;
 
+#define MAIN_WARN_FLAGS " -W3 -WX -wd4996 -wd4101 "
 
     if (!sys("cl -c -nologo -Z7 -Fo:build/obj/"
+        MAIN_WARN_FLAGS
+        " common.c"
+    )) return 1;
+
+    if (!sys("cl -c -nologo -Z7 -Fo:build/obj/"
+        MAIN_WARN_FLAGS
         " -I deps/stb"
         " -I deps/qoi"
         " -I deps/libtiff_config"
@@ -245,9 +252,9 @@ int main(int argc, char** argv) {
         " imgconv.c"
     )) return 1;
 
-
     const char* build_main = 
-        "cl -nologo -W2 -Z7 -Fe:build/bin/marble.exe -Fo:build/obj/ "
+        "cl -nologo -Z7 -Fe:build/bin/marble.exe -Fo:build/obj/ "
+        MAIN_WARN_FLAGS
         " -I deps/stb"
         " -I deps/qoi"
         " -I deps/raylib/src"
@@ -255,6 +262,7 @@ int main(int argc, char** argv) {
         " -I deps/libtiff/libtiff"
         " -I deps/cimgui"
         " -I deps/rlImGui"
+        " build/obj/common.obj"
         " build/obj/imgconv.obj"
         // raylib.lib needs to come before user32.lib, otherwise there's a symbol clash with "CloseWindow".
         " deps/build/raylib.lib deps/build/libtiff.lib deps/build/imgui.lib"
@@ -267,6 +275,7 @@ int main(int argc, char** argv) {
 
 
     if (!sys("cl -c -nologo -Z7 -Fo:build/obj/"
+        " -W2 -WX"
         " -I deps/qoi"
         " -TC" // force .c
         " -D QOI_IMPLEMENTATION"
@@ -274,12 +283,14 @@ int main(int argc, char** argv) {
     )) return 1;
 
     const char* build_imgconv = 
-        "cl -nologo -Z7 -Fe:build/bin/ -Fo:build/obj/"
+        "cl -nologo -Z7 -Fe:build/bin/imgconv.exe -Fo:build/obj/"
+        MAIN_WARN_FLAGS
         " -D MAIN"
         " -I deps/stb"
         " -I deps/qoi"
         " -I deps/libtiff_config"
         " -I deps/libtiff/libtiff"
+        " build/obj/common.obj"
         " build/obj/qoi.obj"
         " deps/build/libtiff.lib"
         " imgconv.c"

@@ -1,9 +1,14 @@
+#ifndef melgrin_marble_common_c
+#define melgrin_marble_common_c
+
 #include <stdio.h>
 #include <string.h> // memcpy
+#include <stdlib.h> // malloc
+#include <assert.h>
 
 #include "./common.h"
 
-static void get_rect_into_buffer(u8* dst, const u8* src, u32 wsrc, u32 hsrc, u32 nsrc, u32 x0, u32 y0, u32 x1, u32 y1, u32 w, u32 h) {
+void get_rect_into_buffer(u8* dst, const u8* src, u32 wsrc, u32 hsrc, u32 nsrc, u32 x0, u32 y0, u32 x1, u32 y1, u32 w, u32 h) {
     src += x0 * nsrc;
     src += wsrc * y0 * nsrc;
     u32 row;
@@ -16,7 +21,7 @@ static void get_rect_into_buffer(u8* dst, const u8* src, u32 wsrc, u32 hsrc, u32
     printf("row = %u, y1 = %u, hsrc = %u\n", row, y1, hsrc);
 }
 
-static u8* get_rect(const u8* src, u32 wsrc, u32 hsrc, u32 nsrc, u32 x0, u32 y0, u32 x1, u32 y1) {
+u8* get_rect(const u8* src, u32 wsrc, u32 hsrc, u32 nsrc, u32 x0, u32 y0, u32 x1, u32 y1) {
     if (x0 > x1) swap(u32, x0, x1);
     if (y0 > y1) swap(u32, y0, y1);
 
@@ -28,4 +33,19 @@ static u8* get_rect(const u8* src, u32 wsrc, u32 hsrc, u32 nsrc, u32 x0, u32 y0,
     return mem;
 }
 
+#ifdef _WIN32
+#include <windows.h>
+#endif // _WIN32
+double get_time() {
+#ifdef _WIN32
+    FILETIME ft;
+    GetSystemTimeAsFileTime(&ft); // using this instead of QueryPerformanceCounter so I don't need a one-time init of QueryPerformanceFrequency (it's probably less accurate though)
+    ULARGE_INTEGER tmp = { .LowPart = ft.dwLowDateTime, .HighPart = ft.dwHighDateTime };
+    double sec = tmp.QuadPart / 10000000.;
+    return sec;
+#else
+#error
+#endif // _WIN32
+}
 
+#endif // melgrin_marble_common_c

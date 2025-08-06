@@ -37,4 +37,9 @@ typedef struct {
 
 #define clamp(var, min, max) (var > max ? max : var < min ? min : var)
 
+void get_rect_into_buffer(u8* dst, const u8* src, u32 wsrc, u32 hsrc, u32 nsrc, u32 x0, u32 y0, u32 x1, u32 y1, u32 w, u32 h);
+u8* get_rect(const u8* src, u32 wsrc, u32 hsrc, u32 nsrc, u32 x0, u32 y0, u32 x1, u32 y1);
+
+double get_time();
+
 #endif // melgrin_marble_common_h

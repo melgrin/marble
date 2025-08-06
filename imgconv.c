@@ -30,25 +30,12 @@
 #define QOI_PIXELS_MAX ((unsigned int)400000000)
 #endif
 
-#include "common.h"
+#include "./common.h"
+#include "./replace_extension.h"
+#include "./raw_file.c"
+#include "./tiff_read.c"
 
-#include "replace_extension.h"
-#include "raw_file.c"
-#include "tiff_read.c"
-
-
-#ifdef _WIN32
-#include <windows.h>
-double get_time() {
-    FILETIME ft;
-    GetSystemTimeAsFileTime(&ft); // using this instead of QueryPerformanceCounter so I don't need a one-time init of QueryPerformanceFrequency (it's probably less accurate though)
-    ULARGE_INTEGER tmp = { .LowPart = ft.dwLowDateTime, .HighPart = ft.dwHighDateTime };
-    double sec = tmp.QuadPart / 10000000.;
-    return sec;
-}
-#else
-#error
-#endif
+#include "./imgconv.h"
 
 
 #include <ctype.h>
@@ -140,7 +127,7 @@ bool resize_image(const u8* in, const u32 inw, const u32 inh, u8** out, const u3
         NULL, outw, outh, 0,
         (stbir_pixel_layout) channels);
     if (!resized) {
-        printf("failed to resize\n", in);
+        printf("failed to resize\n");
         return false;
     }
     double elapsed = get_time() - t0;

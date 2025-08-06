@@ -30,13 +30,13 @@ int64_t options_load(const int argc, const char** argv, const int options_count,
                 (opt->long_name && 0 == strcmp(argv[i], opt->long_name))) {
                 if (opt->type == OPT_FLAG) {
                     *(bool*)opt->value = true;
-                    loaded_mask |= 1 << i;
+                    loaded_mask |= (int64_t) (1 << i);
                 } else if (opt->type == OPT_UINT32) {
                     if (i+1 == argc) {
                         printf("option %s requires an argument\n", argv[i]);
                         return -1;
                     }
-                    loaded_mask |= 1 << i;
+                    loaded_mask |= (int64_t) (1 << i);
                     i += 1;
                     char* end;
                     errno = 0;
@@ -45,16 +45,16 @@ int64_t options_load(const int argc, const char** argv, const int options_count,
                     if (errno != 0) return errno;
                     static_assert(sizeof(value) == sizeof(uint32_t), "non-64-bit platform? unimplemented");
                     *(uint32_t*)opt->value = value;
-                    loaded_mask |= 1 << i;
+                    loaded_mask |= (int64_t) (1 << i);
                 } else if (opt->type == OPT_STRING) {
                     if (i+1 == argc) {
                         printf("option %s requires an argument\n", argv[i]);
                         return -1;
                     }
-                    loaded_mask |= 1 << i;
+                    loaded_mask |= (int64_t) (1 << i);
                     i += 1;
                     *(const char**)opt->value = argv[i];
-                    loaded_mask |= 1 << i;
+                    loaded_mask |= (int64_t) (1 << i);
                 } else {
                     // TODO other int types, float types, others?
                     printf("Error: unimplemented option type %d\n", opt->type);
