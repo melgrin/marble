@@ -96,7 +96,7 @@ int main() {
 
     Logger logger = {0};
     logger.file = fopen("local/log.txt", "ab");
-    log_info(&logger, "\nsession start\n");
+    log_info(&logger, "\n%s %s session start\n", get_date_string_not_threadsafe(), get_time_string_not_threadsafe());
 
     const char* topo_image_filename = "deps/marble_data/topo/gebco_08_rev_elev_A1_grey_geo.tif";
     GeoTIFFData topo_image_full;
