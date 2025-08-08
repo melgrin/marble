@@ -86,6 +86,12 @@ static void draw_text(const char* text, int x, int y, int text_height, Color col
 int main() {
     assert(igDebugCheckVersionAndDataLayout(igGetVersion(), sizeof(ImGuiIO), sizeof(ImGuiStyle), sizeof(ImVec2), sizeof(ImVec4), sizeof(ImDrawVert), sizeof(ImDrawIdx)));
 
+    {
+        char dir[1024];
+        if (!get_program_directory(dir, sizeof(dir))) exit(1);
+        if (!change_directory(dir)) exit(1);
+    }
+
     const int screenWidth = 800;
     const int screenHeight = 600;
 
@@ -95,10 +101,10 @@ int main() {
     SetExitKey(KEY_NULL); // prevent Escape from closing window
 
     Logger logger = {0};
-    logger.file = fopen("local/log.txt", "ab");
+    logger.file = fopen("../log.txt", "ab");
     log_info(&logger, "\n%s %s session start\n", get_date_string_not_threadsafe(), get_time_string_not_threadsafe());
 
-    const char* topo_image_filename = "deps/marble_data/topo/gebco_08_rev_elev_A1_grey_geo.tif";
+    const char* topo_image_filename = "../data/topo/gebco_08_rev_elev_A1_grey_geo.tif";
     GeoTIFFData topo_image_full;
     if (!geotiff_read(topo_image_filename, &topo_image_full)) return 1;
     printf("geo tie lat: %f\ngeo tie lon: %f\ngeo scale lat: %f\ngeo scale lon %f\n",
@@ -139,8 +145,8 @@ int main() {
     const uint32_t h1 = 10800;
     char bmng_jpg[256] = {0};
     char bmng_raw[256] = {0};
-    snprintf(bmng_jpg, sizeof(bmng_jpg), "deps/marble_data/bmng/world.200405.3x%dx%d.A1.jpg", w0, h0);
-    snprintf(bmng_raw, sizeof(bmng_raw), "local/world.200405.3x%dx%d.A1.raw", w1, h1); // TODO move to build/data
+    snprintf(bmng_jpg, sizeof(bmng_jpg), "../data/bmng/world.200405.3x%dx%d.A1.jpg", w0, h0);
+    snprintf(bmng_raw, sizeof(bmng_raw), "../data/bmng/world.200405.3x%dx%d.A1.raw", w1, h1);
 
     {
         bool need_raw = file_exists(bmng_jpg) && !file_exists(bmng_raw);

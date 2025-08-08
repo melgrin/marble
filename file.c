@@ -9,22 +9,35 @@
 #include <sys/stat.h>
 
 bool file_exists(const char* path) {
-    printf("[info] file_exists? %s\n", path);
-    struct stat buf;
-    errno = 0;
-    int res = stat(path, &buf);
-    if (errno == ENOENT) {
-        return false;
-    } else if (res == -1) {
-        fprintf(stderr, "Error: failed to get information for '%s': %s\n", path, strerror(errno));
-        return false;
-    } else {
-        if (buf.st_mode & S_IFREG) {
-            return true;
+    bool result = false;
+    const char* desc = "";
+    do {
+        struct stat buf;
+        errno = 0;
+        int res = stat(path, &buf);
+        if (errno == ENOENT) {
+            desc = "no";
+            result = false;
+            break;
+        } else if (res == -1) {
+            fprintf(stderr, "Error: failed to get information for '%s': %s\n", path, strerror(errno));
+            desc = "no (error: 'stat' failed)";
+            result = false;
+            break;
         } else {
-            return false;
+            if (buf.st_mode & S_IFREG) {
+                desc = "yes";
+                result = true;
+                break;
+            } else {
+                desc = "no (not a 'regular file' (S_IFREG))";
+                result = false;
+                break;
+            }
         }
-    }
+    } while (0);
+    printf("[info] file_exists? %s - %s\n", path, desc);
+    return result;
 }
 
 // reads everything in 'filename' into 'contents'.  total number of bytes read is placed in 'length'.

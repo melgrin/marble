@@ -3,7 +3,7 @@
 
 #include <stdbool.h>
 #include <stdio.h>
-#include <string.h> // memcpy
+#include <string.h> // memcpy, strrchr
 #include <stdlib.h> // malloc
 #include <assert.h>
 #include <time.h>
@@ -11,7 +11,11 @@
 #include "./common.h"
 
 #ifdef _WIN32
-#include <windows.h>
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif
+#include <windows.h> // GetSystemTimeAsFileTime
+#include <direct.h> // chdir
 #endif // _WIN32
 
 void get_rect_into_buffer(u8* dst, const u8* src, u32 wsrc, u32 hsrc, u32 nsrc, u32 x0, u32 y0, u32 x1, u32 y1, u32 w, u32 h) {
@@ -108,6 +112,51 @@ const char* get_date_string_not_threadsafe() {
     strftime(buf, sizeof(buf), "%F", &tm);
 
     return buf;
+}
+
+bool change_directory(const char* path) {
+    printf("[info] chdir %s\n", path);
+#if _WIN32
+    if (-1 == chdir(path)) {
+        fprintf(stderr, "Error: failed to change directories to '%s': %s\n", path, strerror(errno));
+        return false;
+    }
+    return true;
+#else
+#error test this
+#endif
+}
+
+bool get_current_directory(char* buf, u64 buflen) {
+#if _WIN32
+    assert(buflen <= INT_MAX);
+    char* res = getcwd(buf, (int) buflen);
+    if (res == NULL) {
+        fprintf(stderr, "Error: getcwd failed: %s\n", strerror(errno));
+        return false;
+    }
+    return true;
+#else
+#error test this
+#endif
+}
+
+bool get_program_directory(char* buf, u64 buflen) {
+#if _WIN32
+    assert(buflen <= UINT_MAX);
+    DWORD n = GetModuleFileNameA(GetModuleHandleA(NULL), buf, (unsigned int) buflen);
+    bool ok = (n > 0 && n < buflen);
+    if (!ok) {
+        fprintf(stderr, "Error: GetModuleFileName failed: Windows error %u\n", GetLastError());
+        return false;
+    }
+    char* slash = strrchr(buf, '\\');
+    if (slash) *slash = '\0';
+    else *buf = '\0';
+    return true;
+#else
+#error TODO
+#endif
 }
 
 #endif // melgrin_marble_common_c

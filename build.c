@@ -9,10 +9,15 @@
 //#include <sys/types.h>
 
 #if _WIN32
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif
+#include <windows.h>
 #include <direct.h> // mkdir
 #include <process.h> // spawnl
 #endif
 
+#include "./common.c"
 #include "./file.c"
 
 bool my_mkdir(const char* path) {
@@ -86,13 +91,17 @@ bool sys(const char* cmd) {
     }
 }
 
-bool my_chdir(const char* path) {
-    printf("[info] chdir %s\n", path);
-    if (-1 == chdir(path)) {
-        fprintf(stderr, "Error: failed to change directories to '%s': %s\n", path, strerror(errno));
+bool copy_file(const char* src, const char* dest) {
+#if _WIN32
+    printf("[info] copy_file: %s -> %s\n", src, dest);
+    if (!CopyFile(src, dest, 0)) {
+        fprintf(stderr, "CopyFile failed: Windows error %u\n", GetLastError());
         return false;
     }
     return true;
+#else
+#error TODO
+#endif
 }
 
 // hello preprocessor string contatenation, my old friend...
@@ -103,17 +112,14 @@ int main(int argc, char** argv) {
     }
 
     char my_dir[1024];
-    if (!my_dirname(argv[0], my_dir, sizeof(my_dir))) return 1;
-
-    if (strlen(my_dir)) {
-        if (!my_chdir(my_dir)) return 1;
-    }
+    if (!get_program_directory(my_dir, sizeof(my_dir))) return 1;
+    if (!change_directory(my_dir)) return 1;
 
     // TODO? check if submodules have been cloned
 
     // build dependencies only if needed (+10 seconds)
     {
-        if (!my_chdir("deps")) return 1;
+        if (!change_directory("deps")) return 1;
 
         if (!my_mkdir("build")) return 1;
 
@@ -234,7 +240,7 @@ int main(int argc, char** argv) {
             )) return 1;
         }
 
-        if (!my_chdir("..")) return 1;
+        if (!change_directory(my_dir)) return 1;
     }
 
     if (!my_mkdir("build")) return 1;
@@ -303,9 +309,9 @@ int main(int argc, char** argv) {
 
     if (!sys(build_imgconv)) return 1;
 
-    my_mkdir("local");
 
 #if 0
+    my_mkdir("local");
 
 #define w0 "21600"
 #define h0 "21600"
@@ -330,7 +336,7 @@ int main(int argc, char** argv) {
 
     // build and run tests
     {
-        if (!my_chdir("test")) return 1;
+        if (!change_directory("test")) return 1;
 
         if (!sys("cl -nologo -W2 -Z7 opt.c")) return 1;
 
@@ -347,6 +353,27 @@ int main(int argc, char** argv) {
         if (!sys("geotiff")) return 1;
     }
 
+    // install
+    {
+        if (!change_directory(my_dir)) return 1;
+
+        if (!my_mkdir("install")) return 1;
+        if (!my_mkdir("install/bin")) return 1;
+        if (!my_mkdir("install/data")) return 1;
+        if (!my_mkdir("install/data/bmng")) return 1;
+        if (!my_mkdir("install/data/topo")) return 1;
+
+#define w0 "21600"
+#define h0 "21600"
+#define w1 "10800"
+#define h1 "10800"
+#define bmng_jpg_base "world.200405.3x"w0"x"h0".A1.jpg"
+
+        if (!copy_file("deps/marble_data/bmng/" bmng_jpg_base, "install/data/bmng/" bmng_jpg_base)) return 1;
+        if (!copy_file("deps/marble_data/topo/gebco_08_rev_elev_A1_grey_geo.tif", "install/data/topo/gebco_08_rev_elev_A1_grey_geo.tif")) return 1;
+
+        if (!copy_file("build/bin/marble.exe", "install/bin/marble.exe")) return 1;
+    }
 
     return 0;
 }
