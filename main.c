@@ -104,13 +104,19 @@ int main() {
     logger.file = fopen("../log.txt", "ab");
     log_info(&logger, "\n%s %s session start\n", get_date_string_not_threadsafe(), get_time_string_not_threadsafe());
 
-    const char* topo_image_filename = "../data/topo/gebco_08_rev_elev_A1_grey_geo.tif";
+    const char* topo_image_filename = "../data/topo/A1.tif";
     GeoTIFFData topo_image_full;
     if (!geotiff_read(topo_image_filename, &topo_image_full)) return 1;
     printf("geo tie lat: %f\ngeo tie lon: %f\ngeo scale lat: %f\ngeo scale lon %f\n",
         topo_image_full.geo.tie_lat, topo_image_full.geo.tie_lon,
         topo_image_full.geo.scale_lat, topo_image_full.geo.scale_lon);
 
+    const int imgw = 10800;
+    const int imgh = 10800;
+
+    // don't want to deal with "could be any size" situation, because that's just not realistic.  but would be nice to have a bit smarter handling here.  basically load topo and bmng sizes, see if they're equal (no action), or if they're the same aspect ratio as each other (resize) (maybe mod == 0 instead of just aspect ratio? probably not), or error.
+    assert(imgw == topo_image_full.width);
+    assert(imgh == topo_image_full.height);
 
     // ok with cull distance 1000 and 10000
     const int tilew = 200;
@@ -119,14 +125,14 @@ int main() {
     Vector2 tl = {0, 0};
     Vector2 br = {tl.x + tilew, tl.y + tileh};
 
-    const int TILE_X_INDEX_MAX = 10800 / tilew;
-    const int TILE_Y_INDEX_MAX = 10800 / tileh;
+    const int TILE_X_INDEX_MAX = imgw / tilew;
+    const int TILE_Y_INDEX_MAX = imgh / tileh;
     int tile_x_index = 0;
     int tile_y_index = 0;
 
     Camera camera = { 0 };
     //camera.position = (Vector3){ (float) (tl.x + tilew/2), 8.0f /* @Elevation */, (float) (tl.y + tileh/2) };
-    camera.position = (Vector3){ (float) (10800/2), 8.0f /* @Elevation */, (float) (10800/2) };
+    camera.position = (Vector3){ (float) (imgw/2), 8.0f /* @Elevation */, (float) (imgh/2) };
     camera.target = (Vector3){ br.x, 8.0f /* @Elevation */, br.y };
     camera.up = (Vector3){ 0.0f, 1.0f, 0.0f };
     camera.fovy = 60; // 45.0f;
@@ -139,20 +145,13 @@ int main() {
         camera.position.z == camera.target.z));
 
 
-    const uint32_t w0 = 21600;
-    const uint32_t h0 = 21600;
-    const uint32_t w1 = 10800;
-    const uint32_t h1 = 10800;
-    char bmng_jpg[256] = {0};
-    char bmng_raw[256] = {0};
-    snprintf(bmng_jpg, sizeof(bmng_jpg), "../data/bmng/world.200405.3x%dx%d.A1.jpg", w0, h0);
-    snprintf(bmng_raw, sizeof(bmng_raw), "../data/bmng/world.200405.3x%dx%d.A1.raw", w1, h1);
-
+    const char* bmng_raw = "../data/bmng/A1.raw";
     {
+        const char* bmng_jpg = "../data/bmng/A1.jpg";
         bool need_raw = file_exists(bmng_jpg) && !file_exists(bmng_raw);
         if (need_raw) {
-            if (!imgconv(bmng_jpg, ".raw", w1, h1, bmng_raw)) {
-                printf("Failed to convert %s to %s (width %u, height %u)\n", bmng_jpg, bmng_raw, w1, h1);
+            if (!imgconv(bmng_jpg, ".raw", imgw, imgh, bmng_raw)) {
+                printf("Failed to convert %s to %s\n", bmng_jpg, bmng_raw);
                 exit(1);
             }
         }

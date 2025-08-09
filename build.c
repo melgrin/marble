@@ -363,14 +363,8 @@ int main(int argc, char** argv) {
         if (!my_mkdir("install/data/bmng")) return 1;
         if (!my_mkdir("install/data/topo")) return 1;
 
-#define w0 "21600"
-#define h0 "21600"
-#define w1 "10800"
-#define h1 "10800"
-#define bmng_jpg_base "world.200405.3x"w0"x"h0".A1.jpg"
-
-        if (!copy_file("deps/marble_data/bmng/" bmng_jpg_base, "install/data/bmng/" bmng_jpg_base)) return 1;
-        if (!copy_file("deps/marble_data/topo/gebco_08_rev_elev_A1_grey_geo.tif", "install/data/topo/gebco_08_rev_elev_A1_grey_geo.tif")) return 1;
+        if (!copy_file("deps/marble_data/bmng/world.200405.3x21600x21600.A1.jpg", "install/data/bmng/A1.jpg")) return 1;
+        if (!copy_file("deps/marble_data/topo/gebco_08_rev_elev_A1_grey_geo.tif", "install/data/topo/A1.tif")) return 1;
 
         if (!copy_file("build/bin/marble.exe", "install/bin/marble.exe")) return 1;
     }
