@@ -362,8 +362,15 @@ int main(int argc, char** argv) {
         if (!my_mkdir("install/data")) return 1;
         if (!my_mkdir("install/data/bmng")) return 1;
         if (!my_mkdir("install/data/topo")) return 1;
+        
+        const char* bmng = "install/data/bmng/A1.jpg";
+        if (!file_exists(bmng)) {
+            const char* src = "deps/marble_data/bmng/world.200405.3x21600x21600.A1.jpg";
+            const char* imgconv = "build/bin/imgconv";
+            const char* args[] = {imgconv, "jpg", src, "--width", "10800", "--height", "10800", "--output", bmng, NULL};
+            if (!my_spawn(imgconv, args)) return 1;
+        }
 
-        if (!copy_file("deps/marble_data/bmng/world.200405.3x21600x21600.A1.jpg", "install/data/bmng/A1.jpg")) return 1;
         if (!copy_file("deps/marble_data/topo/gebco_08_rev_elev_A1_grey_geo.tif", "install/data/topo/A1.tif")) return 1;
 
         if (!copy_file("build/bin/marble.exe", "install/bin/marble.exe")) return 1;
