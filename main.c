@@ -83,8 +83,12 @@ static void draw_text(const char* text, int x, int y, int text_height, Color col
     }
 }
 
+static const char* version = VERSION; // VERSION macro defined via -D in build.c
+
 int main() {
     assert(igDebugCheckVersionAndDataLayout(igGetVersion(), sizeof(ImGuiIO), sizeof(ImGuiStyle), sizeof(ImVec2), sizeof(ImVec4), sizeof(ImDrawVert), sizeof(ImDrawIdx)));
+
+    printf("marble version %s\n", version);
 
     {
         char dir[1024];

@@ -66,7 +66,7 @@ bool my_dirname(const char* path, char* buf, size_t bufsize) {
     }
 }
 
-// `system` doesn't work well on Windows if you pass forward slashes in the program name (build/bin/imgconv.exe results in system running build.exe!)
+// `system` doesn't work well on Windows if you pass forward slashes in the program name (build/bin/imgconv.exe results in system running build.exe!) // TODO check if this is a problem if using subprocess.h instead
 bool my_spawn(const char* program_name, const char** args) {
 #if _WIN32
     intptr_t exit_status = spawnv(P_WAIT, program_name, args);
@@ -89,6 +89,108 @@ bool sys(const char* cmd) {
         printf("command failed: %s\n", cmd);
         return false;
     }
+}
+
+#if _WIN32
+static char* get_windows_error_string(int err) {
+    static char buf[512]; // @ThreadSafety
+    FormatMessageA(
+        FORMAT_MESSAGE_FROM_SYSTEM,
+        NULL,           // source
+        err,            // messageId
+        MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), // languageId
+        buf,            // buffer
+        sizeof(buf),    // size
+        NULL);          // va_list*
+
+    char* last = &buf[strlen(buf)-1];
+    if (*last == '\n') *last = '\0';
+    return buf;
+}
+#endif
+
+bool sys_capture_stdout(const char* cmd, char* stdout_buf, size_t stdout_bufsize) {
+    if (!cmd) return false;
+    if (!stdout_buf) return false;
+    memset(stdout_buf, 0, stdout_bufsize);
+    if (stdout_bufsize <= 1) return false; // null terminator
+#if _WIN32
+    SECURITY_ATTRIBUTES sa = {0};
+    sa.nLength = sizeof(sa);
+    sa.bInheritHandle = TRUE;
+
+    HANDLE child_out_read = NULL;
+    HANDLE child_out_write = NULL;
+
+    if (!CreatePipe(&child_out_read, &child_out_write, &sa, 0)) {
+        fprintf(stderr, "Failed to create child's stdout pipes: CreatePipe error %d: %s\n", GetLastError(), get_windows_error_string(GetLastError()));
+        return false;
+    }
+    if (!SetHandleInformation(child_out_read, HANDLE_FLAG_INHERIT, 0)) {
+        fprintf(stderr, "Failed to disable 'inherit' for child's stdout output: SetHandleInformation error %d: %s\n", GetLastError(), get_windows_error_string(GetLastError()));
+        return false;
+    }
+
+    STARTUPINFO startupInfo = {0};
+    startupInfo.cb = sizeof(startupInfo);
+    startupInfo.hStdError = GetStdHandle(STD_ERROR_HANDLE);
+    startupInfo.hStdInput = GetStdHandle(STD_INPUT_HANDLE);
+    startupInfo.hStdOutput = child_out_write;
+    startupInfo.dwFlags |= STARTF_USESTDHANDLES;
+
+    PROCESS_INFORMATION processInfo = {0};
+
+    if (!CreateProcess(
+        NULL,          // application name
+        (char*) cmd,   // command line  // it wants non-const
+        NULL,          // process security attributes
+        NULL,          // primary thread security attributes
+        TRUE,          // handles are inherited
+        0,             // creation flags
+        NULL,          // use parent's environment
+        NULL,          // use parent's current directory
+        &startupInfo,  // STARTUPINFO pointer
+        &processInfo)  // receives PROCESS_INFORMATION
+    ) {
+        fprintf(stderr, "Failed to create child process: CreateProcess error %d: %s\n", GetLastError(), get_windows_error_string(GetLastError()));
+        return false;
+    }
+
+    // printf("Created process '%s'\n", cmd);
+
+    // this program hangs on ReadFile if these aren't closed first
+    CloseHandle(child_out_write);
+
+    DWORD count;
+    char* cursor = stdout_buf;
+    size_t rem = stdout_bufsize;
+    while (1) {
+        if (rem <= 0) {
+            fprintf(stderr, "sys_capture_stdout: not enough size in output buffer.  Filled all %zu bytes.\n", stdout_bufsize);
+            stdout_buf[stdout_bufsize-1] = '\0';
+            return false;
+        }
+        BOOL ok = ReadFile(child_out_read, cursor, rem, &count, NULL);
+        cursor += count;
+        rem -= count;
+        if (!ok) {
+            DWORD err = GetLastError();
+            if (err != ERROR_BROKEN_PIPE) { // this seems to be typical when the pipe has nothing on it, or is closed
+                fprintf(stderr, "sys_capture_stdout: ReadFile error %u: %s\n", err, get_windows_error_string(err));
+                return false;
+            }
+        }
+        if (!ok || count == 0) break; // done
+    }
+
+    CloseHandle(child_out_read);
+
+    rstrip(stdout_buf);
+
+    return true;
+#else
+#error TODO
+#endif // _WIN32
 }
 
 bool copy_file(const char* src, const char* dest) {
@@ -263,10 +365,16 @@ int main(int argc, char** argv) {
         " imgconv.c"
     )) return 1;
 
-    const char* build_main = 
+
+    char version[64];
+    if (!sys_capture_stdout("git describe --always --dirty", version, sizeof(version))) return false;
+
+    char build_main[1024];
+    snprintf(build_main, sizeof(build_main),
         "cl -nologo -Z7 -Fe:build/bin/marble.exe -Fo:build/obj/ "
         MAIN_WARN_FLAGS
         " -I deps/stb"
+        " -D VERSION=\\\"%s\\\""
         " -I deps/qoi"
         " -I deps/raylib/src"
         " -I deps/libtiff_config"
@@ -280,7 +388,8 @@ int main(int argc, char** argv) {
         " gdi32.lib msvcrt.lib winmm.lib user32.lib shell32.lib" 
         " main.c"
         " -link -NODEFAULTLIB:libcmt"
-        ;
+        , version
+    );
 
     if (!sys(build_main)) return 1;
 
@@ -338,6 +447,8 @@ int main(int argc, char** argv) {
     {
         if (!change_directory("test")) return 1;
 
+        if (!sys("cl -nologo -W2 -Z7 common.c")) return 1;
+
         if (!sys("cl -nologo -W2 -Z7 opt.c")) return 1;
 
         if (!sys(
@@ -347,6 +458,8 @@ int main(int argc, char** argv) {
             " ../deps/build/libtiff.lib"
             " geotiff.c"
         )) return 1;
+
+        if (!sys("common")) return 1;
 
         if (!sys("opt")) return 1;
 

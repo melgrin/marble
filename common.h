@@ -49,4 +49,6 @@ bool change_directory(const char* path);
 bool get_current_directory(char* buf, u64 buflen);
 bool get_program_directory(char* buf, u64 buflen);
 
+void rstrip(char* s);
+
 #endif // melgrin_marble_common_h

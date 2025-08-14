@@ -3,7 +3,7 @@
 
 #include <stdbool.h>
 #include <stdio.h>
-#include <string.h> // memcpy, strrchr
+#include <string.h> // memcpy, strrchr, strlen
 #include <stdlib.h> // malloc
 #include <assert.h>
 #include <time.h>
@@ -157,6 +157,20 @@ bool get_program_directory(char* buf, u64 buflen) {
 #else
 #error TODO
 #endif
+}
+
+void rstrip(char* s) {
+    if (!s) return;
+    size_t n = strlen(s);
+    if (n == 0) return;
+    for (char* end = s + n - 1; end >= s; --end) {
+        if (*end == ' ') *end = '\0';
+        else if (*end == '\n') *end = '\0';
+        else if (*end == '\r') *end = '\0';
+        else if (*end == '\t') *end = '\0';
+        else if (*end == '\v') *end = '\0';
+        else break;
+    }
 }
 
 #endif // melgrin_marble_common_c
