@@ -84,11 +84,14 @@ static void draw_text(const char* text, int x, int y, int text_height, Color col
 }
 
 static const char* version = VERSION; // VERSION macro defined via -D in build.c
+static const char* build_date = __DATE__;
+static const char* build_time = __TIME__;
 
 int main() {
     assert(igDebugCheckVersionAndDataLayout(igGetVersion(), sizeof(ImGuiIO), sizeof(ImGuiStyle), sizeof(ImVec2), sizeof(ImVec4), sizeof(ImDrawVert), sizeof(ImDrawIdx)));
 
     printf("marble version %s\n", version);
+    printf("marble build time %s %s\n", build_date, build_time);
 
     {
         char dir[1024];
@@ -533,6 +536,12 @@ int main() {
                         igTableNextColumn(); igText("%.3f", camera.up.z);
                         igEndTable();
                     }
+                    igTreePop();
+                }
+
+                if (igTreeNodeEx_Str("About", ImGuiTreeNodeFlags_SpanAvailWidth)) {
+                    igText("Version: %s", version);
+                    igText("Build Date: %s %s\n", build_date, build_time);
                     igTreePop();
                 }
 
