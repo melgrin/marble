@@ -16,7 +16,7 @@ jobs:
             - name: build
               run: |
                   cl.exe build.c
-                  build.exe
+                  .\build.exe
             - name: upload
               uses: actions/upload-artifact@v4
               with:
