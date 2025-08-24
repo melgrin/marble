@@ -1,0 +1,23 @@
+name: marble build
+
+on:
+    push:
+        branches:
+            - "main"
+            - "dev/package"
+            - "dev/package-github"
+
+jobs:
+    run-command:
+        runs-on: windows-latest
+        steps:
+            - name: checkout
+              uses: actions/checkout@v4
+            - name: build
+              run: cl.exe build.c && build.exe
+            - name: upload
+              uses: actions/upload-artifact@v4
+              with:
+                  name: upload
+                  path: install
+
