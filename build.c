@@ -319,6 +319,7 @@ int main(int argc, char** argv) {
                     " -I ./cimgui"
                     " -I ./rlImGui"
                     " -I ./raylib/src"
+                    " -wd5287"
                     " -Fo:./build/"
                     DEPS_COMPILE_FLAGS
                     " ./cimgui/imgui/imgui.cpp"
