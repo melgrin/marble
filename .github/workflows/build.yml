@@ -14,7 +14,10 @@ jobs:
             - name: checkout
               uses: actions/checkout@v4
             - name: build
-              run: cl.exe build.c && build.exe
+              uses: ilammy/msvc-dev-cmd@v1
+              run: |
+                  cl.exe build.c
+                  build.exe
             - name: upload
               uses: actions/upload-artifact@v4
               with:
