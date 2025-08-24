@@ -11,10 +11,9 @@ jobs:
     run-command:
         runs-on: windows-latest
         steps:
-            - name: checkout
-              uses: actions/checkout@v4
+            - uses: actions/checkout@v4
+            - uses: ilammy/msvc-dev-cmd@v1
             - name: build
-              uses: ilammy/msvc-dev-cmd@v1
               run: |
                   cl.exe build.c
                   build.exe
