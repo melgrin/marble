@@ -319,7 +319,7 @@ int main(int argc, char** argv) {
                     " -I ./cimgui"
                     " -I ./rlImGui"
                     " -I ./raylib/src"
-                    " -wd5287"
+                    " -wd5287" // ImGuiHoveredFlags
                     " -Fo:./build/"
                     DEPS_COMPILE_FLAGS
                     " ./cimgui/imgui/imgui.cpp"
@@ -374,6 +374,7 @@ int main(int argc, char** argv) {
     snprintf(build_main, sizeof(build_main),
         "cl -nologo -Z7 -Fe:build/bin/marble.exe -Fo:build/obj/ "
         MAIN_WARN_FLAGS
+        " -wd5287" // ImGuiHoveredFlags
         " -I deps/stb"
         " -D VERSION=\\\"%s\\\""
         " -I deps/qoi"
