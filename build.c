@@ -225,7 +225,11 @@ int main(int argc, char** argv) {
 
         if (!my_mkdir("build")) return 1;
 
-#define DEPS_COMPILE_FLAGS " -Z7 "
+#if RELEASE
+#define DEPS_COMPILE_FLAGS " -nologo "
+#else
+#define DEPS_COMPILE_FLAGS " -nologo -Z7 "
+#endif
 
         if (!file_exists("build/libtiff.lib")) {
             // note: there doesn't seem to be a way to exclude the write portions of the library during compilation.  would need to modify source.
@@ -264,7 +268,7 @@ int main(int argc, char** argv) {
             D "tif_color"     X " " \
             ""
 
-            if (!sys("cl -nologo -c -I ./libtiff_config/ -Fo:./build/ " DEPS_COMPILE_FLAGS " " FILES("./libtiff/libtiff/", ".c"))) return 1;
+            if (!sys("cl -c -I ./libtiff_config/ -Fo:./build/ " DEPS_COMPILE_FLAGS " " FILES("./libtiff/libtiff/", ".c"))) return 1;
             if (!sys("lib -nologo -out:./build/libtiff.lib " FILES("./build/", ".obj"))) return 1;
 
 #undef FILES
@@ -277,19 +281,19 @@ int main(int argc, char** argv) {
 #endif
 
             if (!sys(
-                    "cl -nologo -c " RAYLIB_CONFIG_OVERRIDE " -Fo:./build/ -I ./raylib/src/ " DEPS_COMPILE_FLAGS
+                    "cl -c " RAYLIB_CONFIG_OVERRIDE " -Fo:./build/ -I ./raylib/src/ " DEPS_COMPILE_FLAGS
                     " -I ./raylib/src/external/glfw/include -DPLATFORM_DESKTOP=1"
                     " ./raylib/src/rcore.c"
             )) return 1;
 
             if (!sys(
-                    "cl -nologo -c " RAYLIB_CONFIG_OVERRIDE " -Fo:./build/ -I ./raylib/src/ " DEPS_COMPILE_FLAGS
+                    "cl -c " RAYLIB_CONFIG_OVERRIDE " -Fo:./build/ -I ./raylib/src/ " DEPS_COMPILE_FLAGS
                     " -DSUPPORT_FILEFORMAT_JPG" // this is a workaround to deconflict the version of stbi_load_image that's used in main via imgconv.  it needs to be able to load jpgs, but raylib disables it by default.  and I need raylib's implementation of stb_image so that raylib works.  the right solution is to use dlls to separate raylib from the rest of marble (there are a number of spots they overlap, or may in the future, like stb, qoi, glfw).  raylib tends to fork or configure the library for its own uses.  but dlls are more work, so doing this for now.  TODO.
                     " ./raylib/src/rtextures.c"
             )) return 1;
 
             if (!sys(
-                    "cl -nologo -c " RAYLIB_CONFIG_OVERRIDE " -Fo:./build/ -I ./raylib/src/ " DEPS_COMPILE_FLAGS
+                    "cl -c " RAYLIB_CONFIG_OVERRIDE " -Fo:./build/ -I ./raylib/src/ " DEPS_COMPILE_FLAGS
                     " ./raylib/src/rshapes.c"
                     " ./raylib/src/rtext.c"
                     " ./raylib/src/rmodels.c"
@@ -311,7 +315,7 @@ int main(int argc, char** argv) {
 
         if (!file_exists("build/imgui.lib")) {
             if (!sys(
-                    "cl -nologo -c -MT -EHsc"
+                    "cl -c -MT -EHsc"
                     " -D IMGUI_DISABLE_OBSOLETE_FUNCTIONS" // required otherwise DebugCheckVersionAndDataLayout fails: "Assertion failed: sz_io == sizeof(ImGuiIO) && "Mismatched struct layout!", file imgui\imgui.cpp, line 10390".
                     " -D CIMGUI_NO_EXPORT" // static linking, so no need for this.  otherwise, creates .lib and .exp alongside .exe.
                     " -D NO_FONT_AWESOME" // rlImGui - don't think I want extra fonts right now, no matter how awesome they are.
@@ -350,14 +354,22 @@ int main(int argc, char** argv) {
     if (!my_mkdir("build/bin")) return 1;
     if (!my_mkdir("build/obj")) return 1;
 
+#if RELEASE
+#define MAIN_COMPILE_FLAGS " -nologo "
+#else
+#define MAIN_COMPILE_FLAGS " -nologo -Z7 "
+#endif
+
 #define MAIN_WARN_FLAGS " -W3 -WX -wd4996 -wd4101 "
 
-    if (!sys("cl -c -nologo -Z7 -Fo:build/obj/"
+    if (!sys("cl -c -Fo:build/obj/"
+        MAIN_COMPILE_FLAGS
         MAIN_WARN_FLAGS
         " common.c"
     )) return 1;
 
-    if (!sys("cl -c -nologo -Z7 -Fo:build/obj/"
+    if (!sys("cl -c -Fo:build/obj/"
+        MAIN_COMPILE_FLAGS
         MAIN_WARN_FLAGS
         " -I deps/stb"
         " -I deps/qoi"
@@ -372,7 +384,8 @@ int main(int argc, char** argv) {
 
     char build_main[1024];
     snprintf(build_main, sizeof(build_main),
-        "cl -nologo -Z7 -Fe:build/bin/marble.exe -Fo:build/obj/ "
+        "cl -Fe:build/bin/marble.exe -Fo:build/obj/ "
+        MAIN_COMPILE_FLAGS
         MAIN_WARN_FLAGS
         " -wd5287" // ImGuiHoveredFlags
         " -I deps/stb"
@@ -396,7 +409,8 @@ int main(int argc, char** argv) {
     if (!sys(build_main)) return 1;
 
 
-    if (!sys("cl -c -nologo -Z7 -Fo:build/obj/"
+    if (!sys("cl -c -Fo:build/obj/"
+        MAIN_COMPILE_FLAGS
         " -W2 -WX"
         " -I deps/qoi"
         " -TC" // force .c
@@ -405,7 +419,8 @@ int main(int argc, char** argv) {
     )) return 1;
 
     const char* build_imgconv = 
-        "cl -nologo -Z7 -Fe:build/bin/imgconv.exe -Fo:build/obj/"
+        "cl -Fe:build/bin/imgconv.exe -Fo:build/obj/"
+        MAIN_COMPILE_FLAGS
         MAIN_WARN_FLAGS
         " -D MAIN"
         " -I deps/stb"
