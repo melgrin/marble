@@ -35,7 +35,7 @@ jobs:
               with:
                   submodules: recursive
 
-            - if: github.event_name == "release" && github.event.action == "published"
+            - if: github.event_name == 'release' && github.event.action == 'published'
               name: release version
               run: echo "UPLOAD_NAME=${{ github.event.release.tag_name }}" >> $GITHUB_ENV
               shell: bash
@@ -65,7 +65,7 @@ jobs:
             #      asset_name: release # TODO
             #      # asset_content_type: application/zip
 
-            - if: github.event_name == "release" && github.event.action == "published"  # alt? github.ref_type == "tag"
+            - if: github.event_name == 'release' && github.event.action == 'published'  # alt? github.ref_type == 'tag'
               name: release upload
               uses: softprops/action-gh-release@v2
               with:
