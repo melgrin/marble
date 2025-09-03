@@ -41,10 +41,11 @@ jobs:
               shell: bash
 
             - name: build
-              uses: ilammy/msvc-dev-cmd@v1 # TODO might be able to replace with call to C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Auxiliary\Build\vcvars64.bat, which is the github-specified location on windows-2022 runners - https://github.com/actions/runner-images/blob/main/images/windows/Windows2022-Readme.md#visual-studio-enterprise-2022
-              run: |
-                  cl.exe -DRELEASE build.c
-                  .\build.exe # TODO single line w/&& in case building build.c fails
+              # this location is guaranteed for windows-2022 runners - see https://github.com/actions/runner-images/blob/main/images/windows/Windows2022-Readme.md#visual-studio-enterprise-2022
+              run: >
+                  call "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Auxiliary\Build\vcvars64.bat" &&
+                  cl.exe -DRELEASE build.c &&
+                  .\build.exe
               shell: cmd
 
             - name: artifact upload
