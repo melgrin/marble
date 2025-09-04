@@ -7,9 +7,8 @@ on:
             - "dev/package"
             - "dev/package-github"
 
-        tags: # TODO test this in conjunction with "Change name if tag" step below
-            - "test_tag"
-            # - '*'
+        tags:
+            - "*"
 
     # release:
     #     types: [published]
@@ -19,10 +18,18 @@ jobs:
     build_windows:
         runs-on: windows-2022
 
-        # env:
-        #     UPLOAD_NAME: ${{ github.sha }}
-
         steps:
+
+            - name: Name
+              run: |
+                if [[ "${{ github.ref_type }}" == "tag" ]]; then
+                  echo "UPLOAD_NAME=marble_${{ github.ref_name }}" >> $GITHUB_ENV
+                elif [[ "${{ github.ref_type }}" == "branch" ]]; then
+                  echo "UPLOAD_NAME=marble_${{ github.ref_name }}_${{ github.sha }}" | sed "s#/#_#g; s#-#_#g" >> $GITHUB_ENV
+                else
+                  echo "UPLOAD_NAME=marble_${{ github.sha }}" >> $GITHUB_ENV
+                fi
+              shell: bash
 
             - name: Clone
               uses: actions/checkout@v4
@@ -37,34 +44,13 @@ jobs:
                   .\build.exe
               shell: cmd
 
-            ## - if: github.event_name == 'release' && github.event.action == 'published'
-            #- if: github.ref_type == 'tag'
-            #  name: Change name if tag
-            #  #run: echo "UPLOAD_NAME=${{ github.event.release.tag_name }}" >> $GITHUB_ENV
-            #  run: echo "UPLOAD_NAME=${{ github.ref_name }}" >> $GITHUB_ENV
-            #  shell: bash
-
-            - name: Name
-              #run: echo "UPLOAD_NAME=${{ github.event.release.tag_name }}" >> $GITHUB_ENV
-              run: |
-                if [[ "${{ github.ref_type }}" == "tag" ]]; then
-                  echo "UPLOAD_NAME=marble_${{ github.ref_name }}" >> $GITHUB_ENV
-                elif [[ "${{ github.ref_type }}" == "branch" ]]; then
-                  echo "UPLOAD_NAME=marble_${{ github.ref_name }}_${{ github.sha }}" | sed "s#/#_#g; s#-#_#g" >> $GITHUB_ENV
-                else
-                  echo "UPLOAD_NAME=marble_${{ github.sha }}" >> $GITHUB_ENV
-                fi
-              shell: bash
-
             - name: Upload
               uses: actions/upload-artifact@v4
               with:
-                  #name: ${{ github.sha }}
-                  #name: ${{ github.ref_name }}
-                  #name: ${{ github.ref_type == 'tag' && github.ref_name || github.ref_type == 'branch' && format('{0}_{1}', github.ref_name, github.sha) || github.sha }}
                   name: ${{ env.UPLOAD_NAME }}
                   path: install
 
+            # I don't want to need to publish a release to see if this works
             # - if: github.event_name == 'release' && github.event.action == 'published'
             #   name: release upload
             #   uses: actions/upload-release-asset@v1
@@ -81,8 +67,5 @@ jobs:
             #   name: Upload build artifacts to release
             #   uses: softprops/action-gh-release@v2
             #   with:
-            #       files: install
-
-# TODO actions/stale@v9, or see if there's an "expires" setting with upload
-# TODO? schedule: cron:
+            #       files: install  # not sure how to name this
 
