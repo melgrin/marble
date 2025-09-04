@@ -48,11 +48,11 @@ jobs:
               #run: echo "UPLOAD_NAME=${{ github.event.release.tag_name }}" >> $GITHUB_ENV
               run: |
                 if [[ "${{ github.ref_type }}" == "tag" ]]; then
-                  echo "UPLOAD_NAME=${{ github.ref_name }}" >> $GITHUB_ENV
+                  echo "UPLOAD_NAME=marble_${{ github.ref_name }}" >> $GITHUB_ENV
                 elif [[ "${{ github.ref_type }}" == "branch" ]]; then
-                  echo "UPLOAD_NAME=${{ github.ref_name }}_${{ github.sha }}" | sed "s#/#_#g" >> $GITHUB_ENV
+                  echo "UPLOAD_NAME=marble_${{ github.ref_name }}_${{ github.sha }}" | sed "s#/#_#g; s#-#_#g" >> $GITHUB_ENV
                 else
-                  echo "UPLOAD_NAME=${{ github.sha }}" >> $GITHUB_ENV
+                  echo "UPLOAD_NAME=marble_${{ github.sha }}" >> $GITHUB_ENV
                 fi
               shell: bash
 
