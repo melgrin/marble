@@ -1,3 +1,7 @@
+- github actions extras
+  - TODO actions/stale@v9, or see if there's an "expires" setting with upload
+  - TODO? schedule: cron:
+
 - ui
   - debug pressing escape from within input field then ui defocus button causes two problems:  1) teleports view 2) keeps mouse visible, which causes camera to not be able to turn freely.  something to do with GLFW cursor mode.  step through ~5 frames to see it  erroneously go from DISABLED to NORMAL.  not sure why its that many frames.  I think rlImGuiBegin is maybe seeing the cursor update from my DisableCursor call, and that causes it to Show/Hide.
   - can I get this process's ram and vram usage and display it? (no, you can only get overall vram usage, but you can get per-process ram, like task manager)
