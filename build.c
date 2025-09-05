@@ -490,6 +490,7 @@ int main(int argc, char** argv) {
         if (!my_mkdir("install")) return 1;
         if (!my_mkdir("install/bin")) return 1;
         if (!my_mkdir("install/data")) return 1;
+        if (!my_mkdir("install/logs")) return 1;
         if (!my_mkdir("install/data/bmng")) return 1;
         if (!my_mkdir("install/data/topo")) return 1;
         

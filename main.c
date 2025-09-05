@@ -108,8 +108,22 @@ int main() {
     SetExitKey(KEY_NULL); // prevent Escape from closing window
 
     Logger logger = {0};
-    logger.file = fopen("../log.txt", "ab");
-    log_info(&logger, "\n%s %s session start\n", get_date_string_not_threadsafe(), get_time_string_not_threadsafe());
+    {
+        const char* d0 = get_date_string_not_threadsafe();
+        const char* t0 = get_time_string_not_threadsafe();
+        char* d = _alloca(strlen(d0) + 1); memcpy(d, d0, strlen(d0) + 1);
+        char* t = _alloca(strlen(t0) + 1); memcpy(t, t0, strlen(t0) + 1);
+        for (char* c = d; *c; ++c) { if (*c == '-') *c = '_'; }
+        for (char* c = t; *c; ++c) { if (*c == ':' || *c == '.') *c = '_'; }
+        size_t n = strlen("../logs/") + strlen(d) + strlen("_") + strlen(t) + strlen(".txt") + 1;
+        char* log_filename = _alloca(n);
+        snprintf(log_filename, n, "../logs/%s_%s.txt", d, t);
+        logger.file = fopen(log_filename, "wb");
+        if (logger.file) {
+            printf("Failed to initialize logger: failed to open file '%s': error %d: %s\n", log_filename, errno, strerror(errno));
+        }
+        log_info(&logger, "\n%s %s session start\n", d0, t0);
+    }
 
     const char* topo_image_filename = "../data/topo/A1.tif";
     GeoTIFFData topo_image_full;

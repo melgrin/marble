@@ -79,36 +79,38 @@ static bool get_timestruct(time_t seconds, struct tm *out) {
     return true;
 }
 
-const char* get_time_string_not_threadsafe() {
+char* get_time_string_not_threadsafe() {
+    static char buf[13]; // this is why it's not threadsafe
+    memset(buf, 0, sizeof(buf));
+
     double t = get_time();
     time_t seconds = (time_t) t;
 
     struct tm tm;
-    if (!get_timestruct(seconds, &tm)) return "";
+    if (!get_timestruct(seconds, &tm)) return buf;
 
     int milliseconds = (int) ((t - seconds) * 1000);
     assert(milliseconds >= 0);
     assert(milliseconds <= 999);
 
     // %T = 12:45:78.012 = 12 digits
-    static char buf[13]; // this is why it's not threadsafe
-    memset(buf, 0, sizeof(buf));
     strftime(buf, sizeof(buf), "%T", &tm);
     sprintf(buf + strlen(buf), ".%03d", milliseconds);
 
     return buf;
 }
 
-const char* get_date_string_not_threadsafe() {
+char* get_date_string_not_threadsafe() {
+    static char buf[11]; // this is why it's not threadsafe
+    memset(buf, 0, sizeof(buf));
+
     double t = get_time();
     time_t seconds = (time_t) t;
 
     struct tm tm;
-    if (!get_timestruct(seconds, &tm)) return "";
+    if (!get_timestruct(seconds, &tm)) return buf;
 
     // %F = YYYY-MM-DD = 10 digits
-    static char buf[11]; // this is why it's not threadsafe
-    memset(buf, 0, sizeof(buf));
     strftime(buf, sizeof(buf), "%F", &tm);
 
     return buf;

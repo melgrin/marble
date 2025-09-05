@@ -6,6 +6,7 @@ typedef struct {
 } Logger;
 
 void log_info(Logger* logger, const char* format, ...) {
+    if (!logger || !logger->file || !format) return;
     va_list args;
     va_start(args, format);
     vfprintf(logger->file, format, args);

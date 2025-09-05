@@ -42,8 +42,8 @@ void get_rect_into_buffer(u8* dst, const u8* src, u32 wsrc, u32 hsrc, u32 nsrc, 
 u8* get_rect(const u8* src, u32 wsrc, u32 hsrc, u32 nsrc, u32 x0, u32 y0, u32 x1, u32 y1);
 
 double get_time();
-const char* get_time_string_not_threadsafe();
-const char* get_date_string_not_threadsafe();
+char* get_time_string_not_threadsafe();
+char* get_date_string_not_threadsafe();
 
 bool change_directory(const char* path);
 bool get_current_directory(char* buf, u64 buflen);
