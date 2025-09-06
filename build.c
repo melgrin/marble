@@ -378,6 +378,17 @@ int main(int argc, char** argv) {
         " imgconv.c"
     )) return 1;
 
+    if (!sys("cl -c -Fo:build/obj/"
+        MAIN_COMPILE_FLAGS
+        MAIN_WARN_FLAGS
+        " file.c"
+    )) return 1;
+
+    if (!sys("cl -c -Fo:build/obj/"
+        MAIN_COMPILE_FLAGS
+        MAIN_WARN_FLAGS
+        " logger.c"
+    )) return 1;
 
     char version[64];
     if (!sys_capture_stdout("git describe --always --dirty", version, sizeof(version))) return false;
@@ -398,6 +409,8 @@ int main(int argc, char** argv) {
         " -I deps/rlImGui"
         " build/obj/common.obj"
         " build/obj/imgconv.obj"
+        " build/obj/file.obj"
+        " build/obj/logger.obj"
         // raylib.lib needs to come before user32.lib, otherwise there's a symbol clash with "CloseWindow".
         " deps/build/raylib.lib deps/build/libtiff.lib deps/build/imgui.lib"
         " gdi32.lib msvcrt.lib winmm.lib user32.lib shell32.lib" 
@@ -428,6 +441,7 @@ int main(int argc, char** argv) {
         " -I deps/libtiff_config"
         " -I deps/libtiff/libtiff"
         " build/obj/common.obj"
+        " build/obj/file.obj"
         " build/obj/qoi.obj"
         " deps/build/libtiff.lib"
         " imgconv.c"

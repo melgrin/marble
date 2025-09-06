@@ -17,7 +17,7 @@ bool raw_write(const char* filename, u8* data, u32 width, u32 height, u8 channel
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "./file.c"
+#include "./file.h"
 
 static bool read32(u8** pos, size_t* rem, u32* out) {
     if (!pos || !rem || !out) return false;

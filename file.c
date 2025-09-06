@@ -5,8 +5,15 @@
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include <sys/stat.h>
+
+#include "./file.h"
+
+#if _WIN32
+#include <windows.h> // FindFirstFile, FindNextFile, FindClose
+#endif
 
 bool file_exists(const char* path) {
     bool result = false;
@@ -115,6 +122,97 @@ end:
     if (perr) *perr = err;
     if (pmsg) *pmsg = msg;
     return res;
+}
+
+bool list_files(const char* directory, FileInfos* file_infos) {
+    if (!directory || strlen(directory) == 0) return false;
+#if _WIN32
+    bool res = false;
+    unsigned int count = 0;
+    WIN32_FIND_DATA find;
+    HANDLE h;
+    FileInfos fis = {0};
+
+    size_t pattern_length = strlen(directory) + strlen("/*") + 1;
+    char* pattern = _alloca(pattern_length);
+    if (!pattern) {
+        fprintf(stderr, "list_files: failed to allocate memory for file pattern required by Win32 FindFirstFile; wanted %zu bytes, but got error: %s\n", pattern_length, strerror(errno));
+        goto end;
+    }
+    memset(pattern, 0, pattern_length);
+    strcat(pattern, directory);
+    char last = directory[strlen(directory)-1];
+    if (last == '/' || last == '\\') strcat(pattern, "*");
+    else                             strcat(pattern, "/*");
+
+    h = FindFirstFile(pattern, &find);
+    if (h == INVALID_HANDLE_VALUE) {
+        fprintf(stderr, "list_files: failed to read directory '%s': Win32 FindFirstFile failed with error %u\n", directory, GetLastError());
+        goto end;
+    }
+    while (1) {
+        count += 1;
+        if (!FindNextFile(h, &find)) break;
+    }
+    FindClose(h);
+
+    fis.count = count;
+
+    size_t bytes = count * sizeof(FileInfo);
+    fis.items = malloc(bytes);
+    if (fis.items == NULL) {
+        fprintf(stderr, "list_files: failed to allocate memory for storing file information; wanted %zu bytes, but got error: %s\n", bytes, strerror(errno));
+        goto end;
+    }
+
+    h = FindFirstFile(pattern, &find);
+    if (h == INVALID_HANDLE_VALUE) {
+        fprintf(stderr, "list_files: failed to read directory '%s': Win32 FindFirstFile failed with error %u\n", directory, GetLastError());
+        goto end;
+    }
+    for (unsigned int i = 0; i < count; ++i) {
+        FileInfo fi = {0};
+
+        fi.name = strdup(find.cFileName);
+
+        if (find.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) fi.attributes |= FILE_IS_DIRECTORY;
+        if (find.dwFileAttributes & FILE_ATTRIBUTE_REPARSE_POINT) fi.attributes |= FILE_IS_SYMLINK;
+        //if (find.dwFileAttributes & FILE_ATTRIBUTE_HIDDEN) fi.attributes |= FILE_IS_HIDDEN;
+        if (!(find.dwFileAttributes & FILE_ATTRIBUTE_READONLY)) fi.attributes |= FILE_IS_WRITABLE;
+
+        //fi.size = nFileSizeLow + nFileSizeHigh * something;
+        //fi.creation_time = win32_filetime_to_something(find.ftCreationTime);
+        //fi.access_time = win32_filetime_to_something(find.ftLastAccessTime);
+        //fi.modification_time = win32_filetime_to_something(find.ftLastWriteTime);
+
+        fis.items[i] = fi;
+        if (!FindNextFile(h, &find)) break;
+    }
+    FindClose(h);
+
+    res = true;
+
+end:
+    if (res && file_infos) {
+        *file_infos = fis;
+    } else {
+        free_file_infos(&fis);
+    }
+    return res;
+
+#else
+#error TODO - readdir, probably
+#endif
+
+}
+
+void free_file_infos(FileInfos* file_infos) {
+    if (file_infos && file_infos->items) {
+        for (unsigned int i = 0; i < file_infos->count; ++i) {
+            free(file_infos->items[i].name);
+        }
+        free(file_infos->items);
+    }
 }
 
 #endif // melgrin_marble_file_c
