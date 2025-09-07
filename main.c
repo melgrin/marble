@@ -138,10 +138,20 @@ int main() {
     int tile_x_index = 0;
     int tile_y_index = 0;
 
+    const double initial_lat = 58.363733;
+    const double initial_lon = -160.382731;
+    const float initial_elevation = 20.0f; // @Elevation
+
     Camera camera = { 0 };
     //camera.position = (Vector3){ (float) (tl.x + tilew/2), 8.0f /* @Elevation */, (float) (tl.y + tileh/2) };
-    camera.position = (Vector3){ (float) (imgw/2), 8.0f /* @Elevation */, (float) (imgh/2) };
-    camera.target = (Vector3){ br.x, 8.0f /* @Elevation */, br.y };
+    //camera.position = (Vector3){ (float) (imgw/2), , (float) (imgh/2) };
+    {
+        Vec2 pos = geotiff_lat_lon_to_x_y(initial_lat, initial_lon, topo_image_full.geo);
+        camera.position.x = (float) pos.x;
+        camera.position.z = (float) pos.y;
+    }
+    camera.position.y = initial_elevation;
+    camera.target = (Vector3){ br.x, initial_elevation, br.y };
     camera.up = (Vector3){ 0.0f, 1.0f, 0.0f };
     camera.fovy = 60; // 45.0f;
     camera.projection = CAMERA_PERSPECTIVE;
