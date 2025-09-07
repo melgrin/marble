@@ -12,7 +12,11 @@
 #include "./file.h"
 
 #if _WIN32
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif
 #include <windows.h> // FindFirstFile, FindNextFile, FindClose
+#include <direct.h> // mkdir
 #endif
 
 bool file_exists(const char* path) {
@@ -212,6 +216,30 @@ void free_file_infos(FileInfos* file_infos) {
             free(file_infos->items[i].name);
         }
         free(file_infos->items);
+    }
+}
+
+
+bool create_directory(const char* path) {
+    struct stat buf;
+    errno = 0;
+    int res = stat(path, &buf);
+    if (errno == ENOENT) {
+        res = mkdir(path);
+        if (res == -1) {
+            fprintf(stderr, "Error: failed to create directory '%s': %s\n", path, strerror(errno));
+            return false;
+        }
+        return true;
+    } else if (res == -1) {
+        fprintf(stderr, "Error: failed to get information for '%s': %s\n", path, strerror(errno));
+        return false;
+    } else {
+        if (buf.st_mode & S_IFDIR) {
+            return true;
+        }
+        fprintf(stderr, "Error: wanted to make directory '%s', but it already exists as a file.\n", path);
+        return false;
     }
 }
 

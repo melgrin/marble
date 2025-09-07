@@ -13,7 +13,6 @@
 #define WIN32_LEAN_AND_MEAN
 #endif
 #include <windows.h>
-#include <direct.h> // mkdir
 #include <process.h> // spawnl
 #endif
 
@@ -22,26 +21,7 @@
 
 bool my_mkdir(const char* path) {
     printf("[info] mkdir %s\n", path);
-    struct stat buf;
-    errno = 0;
-    int res = stat(path, &buf);
-    if (errno == ENOENT) {
-        res = mkdir(path);
-        if (res == -1) {
-            fprintf(stderr, "Error: failed to create directory '%s': %s\n", path, strerror(errno));
-            return false;
-        }
-        return true;
-    } else if (res == -1) {
-        fprintf(stderr, "Error: failed to get information for '%s': %s\n", path, strerror(errno));
-        return false;
-    } else {
-        if (buf.st_mode & S_IFDIR) {
-            return true;
-        }
-        fprintf(stderr, "Error: wanted to make directory '%s', but it already exists as a file.\n", path);
-        return false;
-    }
+    return create_directory(path);
 }
 
 bool my_dirname(const char* path, char* buf, size_t bufsize) {
@@ -504,7 +484,6 @@ int main(int argc, char** argv) {
         if (!my_mkdir("install")) return 1;
         if (!my_mkdir("install/bin")) return 1;
         if (!my_mkdir("install/data")) return 1;
-        if (!my_mkdir("install/logs")) return 1;
         if (!my_mkdir("install/data/bmng")) return 1;
         if (!my_mkdir("install/data/topo")) return 1;
         

@@ -106,6 +106,7 @@ int main() {
     printf("%.3f seconds for InitWindow\n", GetTime() - t0);
     SetExitKey(KEY_NULL); // prevent Escape from closing window
 
+    create_directory("../logs");
     Logger logger = new_log_file("../logs");
     remove_old_log_files("../logs", 10);
 

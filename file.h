@@ -32,4 +32,10 @@ bool list_files(const char* directory, FileInfos* file_infos);
 
 void free_file_infos(FileInfos* file_infos);
 
+// mkdir, but with more checks and fewer conditions that are considered "errors"
+// returns true if directory was successfully created
+// returns true if directory already exists
+// returns false otherwise, such as permissions error, parent directory not existing, or named path already existing as a file instead of a directory
+bool create_directory(const char* path);
+
 #endif // melgrin_marble_file_h
