@@ -20,12 +20,13 @@ jobs:
       - name: Name
         run: |
           if [[ "${{ github.ref_type }}" == "tag" ]]; then
-            echo "UPLOAD_NAME=marble_${{ github.ref_name }}" >> $GITHUB_ENV
+            detail=${{ github.ref_name }}
           elif [[ "${{ github.ref_type }}" == "branch" ]]; then
-            echo "UPLOAD_NAME=marble_${{ github.ref_name }}_${{ github.sha }}" | sed "s#/#_#g; s#-#_#g" >> $GITHUB_ENV
+            detail=${{ github.ref_name }}_${{ github.sha }}
           else
-            echo "UPLOAD_NAME=marble_${{ github.sha }}" >> $GITHUB_ENV
+            detail=${{ github.sha }}
           fi
+          echo "UPLOAD_NAME=marble_windows_${detail}" | sed "s#/#_#g" >> $GITHUB_ENV
         shell: bash
 
       - name: Clone
@@ -45,7 +46,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: ${{ env.UPLOAD_NAME }}
-          path: install
+          path: install # build.c is hardcoded to put files here
 
       # I don't want to need to publish a release to see if this works
       # - if: github.event_name == 'release' && github.event.action == 'published'
