@@ -4,7 +4,7 @@
 
 #if OPT_SELF_TEST
 
-#include "../opt.c"
+#include "../src/opt.c"
 #include <stdio.h>
 
 #define Test(condition) _Test(condition, #condition, __FILE__, __LINE__)

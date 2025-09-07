@@ -9,51 +9,19 @@
 //#include <sys/types.h>
 
 #if _WIN32
-#include <direct.h> // mkdir
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif
+#include <windows.h>
 #include <process.h> // spawnl
 #endif
 
+#include "./src/common.c"
+#include "./src/file.c"
+
 bool my_mkdir(const char* path) {
     printf("[info] mkdir %s\n", path);
-    struct stat buf;
-    errno = 0;
-    int res = stat(path, &buf);
-    if (errno == ENOENT) {
-        res = mkdir(path);
-        if (res == -1) {
-            fprintf(stderr, "Error: failed to create directory '%s': %s\n", path, strerror(errno));
-            return false;
-        }
-        return true;
-    } else if (res == -1) {
-        fprintf(stderr, "Error: failed to get information for '%s': %s\n", path, strerror(errno));
-        return false;
-    } else {
-        if (buf.st_mode & S_IFDIR) {
-            return true;
-        }
-        fprintf(stderr, "Error: wanted to make directory '%s', but it already exists as a file.\n", path);
-        return false;
-    }
-}
-
-bool file_exists(const char* path) {
-    printf("[info] file_exists? %s\n", path);
-    struct stat buf;
-    errno = 0;
-    int res = stat(path, &buf);
-    if (errno == ENOENT) {
-        return false;
-    } else if (res == -1) {
-        fprintf(stderr, "Error: failed to get information for '%s': %s\n", path, strerror(errno));
-        return false;
-    } else {
-        if (buf.st_mode & S_IFREG) {
-            return true;
-        } else {
-            return false;
-        }
-    }
+    return create_directory(path);
 }
 
 bool my_dirname(const char* path, char* buf, size_t bufsize) {
@@ -78,12 +46,12 @@ bool my_dirname(const char* path, char* buf, size_t bufsize) {
     }
 }
 
-// `system` doesn't work well on Windows if you pass forward slashes in the program name (build/bin/imgconv.exe results in system running build.exe!)
+// `system` doesn't work well on Windows if you pass forward slashes in the program name (build/bin/imgconv.exe results in system running build.exe!) // TODO check if this is a problem if using subprocess.h instead
 bool my_spawn(const char* program_name, const char** args) {
 #if _WIN32
     intptr_t exit_status = spawnv(P_WAIT, program_name, args);
     if (exit_status != 0) {
-        fprintf(stderr, "%s subproces failed\n", program_name);
+        fprintf(stderr, "%s subprocess failed\n", program_name);
         return false;
     }
     return true;
@@ -103,13 +71,119 @@ bool sys(const char* cmd) {
     }
 }
 
-bool my_chdir(const char* path) {
-    printf("[info] chdir %s\n", path);
-    if (-1 == chdir(path)) {
-        fprintf(stderr, "Error: failed to change directories to '%s': %s\n", path, strerror(errno));
+#if _WIN32
+static char* get_windows_error_string(int err) {
+    static char buf[512]; // @ThreadSafety
+    FormatMessageA(
+        FORMAT_MESSAGE_FROM_SYSTEM,
+        NULL,           // source
+        err,            // messageId
+        MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), // languageId
+        buf,            // buffer
+        sizeof(buf),    // size
+        NULL);          // va_list*
+
+    char* last = &buf[strlen(buf)-1];
+    if (*last == '\n') *last = '\0';
+    return buf;
+}
+#endif
+
+bool sys_capture_stdout(const char* cmd, char* stdout_buf, size_t stdout_bufsize) {
+    if (!cmd) return false;
+    if (!stdout_buf) return false;
+    memset(stdout_buf, 0, stdout_bufsize);
+    if (stdout_bufsize <= 1) return false; // null terminator
+#if _WIN32
+    SECURITY_ATTRIBUTES sa = {0};
+    sa.nLength = sizeof(sa);
+    sa.bInheritHandle = TRUE;
+
+    HANDLE child_out_read = NULL;
+    HANDLE child_out_write = NULL;
+
+    if (!CreatePipe(&child_out_read, &child_out_write, &sa, 0)) {
+        fprintf(stderr, "Failed to create child's stdout pipes: CreatePipe error %d: %s\n", GetLastError(), get_windows_error_string(GetLastError()));
+        return false;
+    }
+    if (!SetHandleInformation(child_out_read, HANDLE_FLAG_INHERIT, 0)) {
+        fprintf(stderr, "Failed to disable 'inherit' for child's stdout output: SetHandleInformation error %d: %s\n", GetLastError(), get_windows_error_string(GetLastError()));
+        return false;
+    }
+
+    STARTUPINFO startupInfo = {0};
+    startupInfo.cb = sizeof(startupInfo);
+    startupInfo.hStdError = GetStdHandle(STD_ERROR_HANDLE);
+    startupInfo.hStdInput = GetStdHandle(STD_INPUT_HANDLE);
+    startupInfo.hStdOutput = child_out_write;
+    startupInfo.dwFlags |= STARTF_USESTDHANDLES;
+
+    PROCESS_INFORMATION processInfo = {0};
+
+    if (!CreateProcess(
+        NULL,          // application name
+        (char*) cmd,   // command line  // it wants non-const
+        NULL,          // process security attributes
+        NULL,          // primary thread security attributes
+        TRUE,          // handles are inherited
+        0,             // creation flags
+        NULL,          // use parent's environment
+        NULL,          // use parent's current directory
+        &startupInfo,  // STARTUPINFO pointer
+        &processInfo)  // receives PROCESS_INFORMATION
+    ) {
+        fprintf(stderr, "Failed to create child process: CreateProcess error %d: %s\n", GetLastError(), get_windows_error_string(GetLastError()));
+        return false;
+    }
+
+    // printf("Created process '%s'\n", cmd);
+
+    // this program hangs on ReadFile if these aren't closed first
+    CloseHandle(child_out_write);
+
+    DWORD count;
+    char* cursor = stdout_buf;
+    size_t rem = stdout_bufsize;
+    while (1) {
+        if (rem <= 0) {
+            fprintf(stderr, "sys_capture_stdout: not enough size in output buffer.  Filled all %zu bytes.\n", stdout_bufsize);
+            stdout_buf[stdout_bufsize-1] = '\0';
+            return false;
+        }
+        BOOL ok = ReadFile(child_out_read, cursor, rem, &count, NULL);
+        cursor += count;
+        rem -= count;
+        if (!ok) {
+            DWORD err = GetLastError();
+            if (err != ERROR_BROKEN_PIPE) { // this seems to be typical when the pipe has nothing on it, or is closed
+                fprintf(stderr, "sys_capture_stdout: ReadFile error %u: %s\n", err, get_windows_error_string(err));
+                return false;
+            }
+        }
+        if (!ok || count == 0) break; // done
+    }
+
+    CloseHandle(child_out_read);
+
+    rstrip(stdout_buf);
+
+    return true;
+#else
+#error TODO
+#endif // _WIN32
+}
+
+bool copy_file(const char* src, const char* dest) {
+#if _WIN32
+    printf("[info] copy_file: %s -> %s\n", src, dest);
+    if (!CopyFile(src, dest, 0)) {
+        fprintf(stderr, "CopyFile failed: Windows error %u\n", GetLastError());
         return false;
     }
     return true;
+#else
+#error TODO
+#endif
 }
 
 // hello preprocessor string contatenation, my old friend...
@@ -120,21 +194,22 @@ int main(int argc, char** argv) {
     }
 
     char my_dir[1024];
-    if (!my_dirname(argv[0], my_dir, sizeof(my_dir))) return 1;
-
-    if (strlen(my_dir)) {
-        if (!my_chdir(my_dir)) return 1;
-    }
+    if (!get_program_directory(my_dir, sizeof(my_dir))) return 1;
+    if (!change_directory(my_dir)) return 1;
 
     // TODO? check if submodules have been cloned
 
     // build dependencies only if needed (+10 seconds)
     {
-        if (!my_chdir("deps")) return 1;
+        if (!change_directory("deps")) return 1;
 
         if (!my_mkdir("build")) return 1;
 
-#define DEPS_COMPILE_FLAGS "-Z7"
+#if RELEASE
+#define DEPS_COMPILE_FLAGS " -nologo "
+#else
+#define DEPS_COMPILE_FLAGS " -nologo -Z7 "
+#endif
 
         if (!file_exists("build/libtiff.lib")) {
             // note: there doesn't seem to be a way to exclude the write portions of the library during compilation.  would need to modify source.
@@ -173,7 +248,7 @@ int main(int argc, char** argv) {
             D "tif_color"     X " " \
             ""
 
-            if (!sys("cl -nologo -c -I ./libtiff_config/ -Fo:./build/ " DEPS_COMPILE_FLAGS " " FILES("./libtiff/libtiff/", ".c"))) return 1;
+            if (!sys("cl -c -I ./libtiff_config/ -Fo:./build/ " DEPS_COMPILE_FLAGS " " FILES("./libtiff/libtiff/", ".c"))) return 1;
             if (!sys("lib -nologo -out:./build/libtiff.lib " FILES("./build/", ".obj"))) return 1;
 
 #undef FILES
@@ -186,15 +261,20 @@ int main(int argc, char** argv) {
 #endif
 
             if (!sys(
-                    "cl -nologo -c " RAYLIB_CONFIG_OVERRIDE " -Fo:./build/ -I ./raylib/src/ " DEPS_COMPILE_FLAGS
+                    "cl -c " RAYLIB_CONFIG_OVERRIDE " -Fo:./build/ -I ./raylib/src/ " DEPS_COMPILE_FLAGS
                     " -I ./raylib/src/external/glfw/include -DPLATFORM_DESKTOP=1"
                     " ./raylib/src/rcore.c"
             )) return 1;
 
             if (!sys(
-                    "cl -nologo -c " RAYLIB_CONFIG_OVERRIDE " -Fo:./build/ -I ./raylib/src/ " DEPS_COMPILE_FLAGS
-                    " ./raylib/src/rshapes.c"
+                    "cl -c " RAYLIB_CONFIG_OVERRIDE " -Fo:./build/ -I ./raylib/src/ " DEPS_COMPILE_FLAGS
+                    " -DSUPPORT_FILEFORMAT_JPG" // this is a workaround to deconflict the version of stbi_load_image that's used in main via imgconv.  it needs to be able to load jpgs, but raylib disables it by default.  and I need raylib's implementation of stb_image so that raylib works.  the right solution is to use dlls to separate raylib from the rest of marble (there are a number of spots they overlap, or may in the future, like stb, qoi, glfw).  raylib tends to fork or configure the library for its own uses.  but dlls are more work, so doing this for now.  TODO.
                     " ./raylib/src/rtextures.c"
+            )) return 1;
+
+            if (!sys(
+                    "cl -c " RAYLIB_CONFIG_OVERRIDE " -Fo:./build/ -I ./raylib/src/ " DEPS_COMPILE_FLAGS
+                    " ./raylib/src/rshapes.c"
                     " ./raylib/src/rtext.c"
                     " ./raylib/src/rmodels.c"
                     " ./raylib/src/utils.c"
@@ -215,7 +295,7 @@ int main(int argc, char** argv) {
 
         if (!file_exists("build/imgui.lib")) {
             if (!sys(
-                    "cl -nologo -c -MT -EHsc"
+                    "cl -c -MT -EHsc"
                     " -D IMGUI_DISABLE_OBSOLETE_FUNCTIONS" // required otherwise DebugCheckVersionAndDataLayout fails: "Assertion failed: sz_io == sizeof(ImGuiIO) && "Mismatched struct layout!", file imgui\imgui.cpp, line 10390".
                     " -D CIMGUI_NO_EXPORT" // static linking, so no need for this.  otherwise, creates .lib and .exp alongside .exe.
                     " -D NO_FONT_AWESOME" // rlImGui - don't think I want extra fonts right now, no matter how awesome they are.
@@ -223,8 +303,9 @@ int main(int argc, char** argv) {
                     " -I ./cimgui"
                     " -I ./rlImGui"
                     " -I ./raylib/src"
+                    " -wd5287" // ImGuiHoveredFlags
                     " -Fo:./build/"
-                    " " DEPS_COMPILE_FLAGS
+                    DEPS_COMPILE_FLAGS
                     " ./cimgui/imgui/imgui.cpp"
                     " ./cimgui/imgui/imgui_demo.cpp"
                     " ./cimgui/imgui/imgui_draw.cpp"
@@ -246,44 +327,110 @@ int main(int argc, char** argv) {
             )) return 1;
         }
 
-        if (!my_chdir("..")) return 1;
+        if (!change_directory(my_dir)) return 1;
     }
 
     if (!my_mkdir("build")) return 1;
     if (!my_mkdir("build/bin")) return 1;
     if (!my_mkdir("build/obj")) return 1;
 
-    const char* build_main = 
-        "cl -nologo -W2 -Z7 -Fe:build/bin/marble.exe -Fo:build/obj/ "
+#if RELEASE
+#define MAIN_COMPILE_FLAGS " -nologo -I src "
+#else
+#define MAIN_COMPILE_FLAGS " -nologo -I src -Z7 "
+#endif
+
+#define MAIN_WARN_FLAGS " -W3 -WX -wd4996 -wd4101 "
+
+    if (!sys("cl -c -Fo:build/obj/"
+        MAIN_COMPILE_FLAGS
+        MAIN_WARN_FLAGS
+        " src/common.c"
+    )) return 1;
+
+    if (!sys("cl -c -Fo:build/obj/"
+        MAIN_COMPILE_FLAGS
+        MAIN_WARN_FLAGS
         " -I deps/stb"
+        " -I deps/qoi"
+        " -I deps/libtiff_config"
+        " -I deps/libtiff/libtiff"
+        " src/imgconv.c"
+    )) return 1;
+
+    if (!sys("cl -c -Fo:build/obj/"
+        MAIN_COMPILE_FLAGS
+        MAIN_WARN_FLAGS
+        " src/file.c"
+    )) return 1;
+
+    if (!sys("cl -c -Fo:build/obj/"
+        MAIN_COMPILE_FLAGS
+        MAIN_WARN_FLAGS
+        " src/logger.c"
+    )) return 1;
+
+    char version[64];
+    if (!sys_capture_stdout("git describe --always --dirty", version, sizeof(version))) return false;
+
+    char build_main[1024];
+    snprintf(build_main, sizeof(build_main),
+        "cl -Fe:build/bin/marble.exe -Fo:build/obj/ "
+        MAIN_COMPILE_FLAGS
+        MAIN_WARN_FLAGS
+        " -wd5287" // ImGuiHoveredFlags
+        " -I deps/stb"
+        " -D VERSION=\\\"%s\\\""
         " -I deps/qoi"
         " -I deps/raylib/src"
         " -I deps/libtiff_config"
         " -I deps/libtiff/libtiff"
         " -I deps/cimgui"
         " -I deps/rlImGui"
+        " build/obj/common.obj"
+        " build/obj/imgconv.obj"
+        " build/obj/file.obj"
+        " build/obj/logger.obj"
         // raylib.lib needs to come before user32.lib, otherwise there's a symbol clash with "CloseWindow".
         " deps/build/raylib.lib deps/build/libtiff.lib deps/build/imgui.lib"
         " gdi32.lib msvcrt.lib winmm.lib user32.lib shell32.lib" 
-        " main.c"
+        " src/main.c"
         " -link -NODEFAULTLIB:libcmt"
-        ;
+        , version
+    );
 
     if (!sys(build_main)) return 1;
 
 
+    if (!sys("cl -c -Fo:build/obj/"
+        MAIN_COMPILE_FLAGS
+        " -W2 -WX"
+        " -I deps/qoi"
+        " -TC" // force .c
+        " -D QOI_IMPLEMENTATION"
+        " deps/qoi/qoi.h"
+    )) return 1;
+
     const char* build_imgconv = 
-        "cl -nologo -Z7 -Fe:build/bin/ -Fo:build/obj/"
+        "cl -Fe:build/bin/imgconv.exe -Fo:build/obj/"
+        MAIN_COMPILE_FLAGS
+        MAIN_WARN_FLAGS
+        " -D MAIN"
         " -I deps/stb"
         " -I deps/qoi"
         " -I deps/libtiff_config"
         " -I deps/libtiff/libtiff"
+        " build/obj/common.obj"
+        " build/obj/file.obj"
+        " build/obj/qoi.obj"
         " deps/build/libtiff.lib"
-        " imgconv.c"
+        " src/imgconv.c"
         ;
 
     if (!sys(build_imgconv)) return 1;
 
+
+#if 0
     my_mkdir("local");
 
 #define w0 "21600"
@@ -304,10 +451,14 @@ int main(int argc, char** argv) {
         if (!my_spawn(imgconv, args)) return 1;
     }
 
+#endif
+
 
     // build and run tests
     {
-        if (!my_chdir("test")) return 1;
+        if (!change_directory("test")) return 1;
+
+        if (!sys("cl -nologo -W2 -Z7 common.c")) return 1;
 
         if (!sys("cl -nologo -W2 -Z7 opt.c")) return 1;
 
@@ -319,11 +470,38 @@ int main(int argc, char** argv) {
             " geotiff.c"
         )) return 1;
 
+        if (!sys("common")) return 1;
+
         if (!sys("opt")) return 1;
 
         if (!sys("geotiff")) return 1;
     }
 
+    // install
+    {
+        if (!change_directory(my_dir)) return 1;
+
+        if (!my_mkdir("install")) return 1;
+        if (!my_mkdir("install/bin")) return 1;
+        if (!my_mkdir("install/data")) return 1;
+        if (!my_mkdir("install/data/bmng")) return 1;
+        if (!my_mkdir("install/data/topo")) return 1;
+
+        if (!copy_file("README.md", "install/README.md")) return 1;
+        if (!copy_file("LICENSE.txt", "install/LICENSE.txt")) return 1;
+        
+        const char* bmng = "install/data/bmng/A1.jpg";
+        if (!file_exists(bmng)) {
+            const char* src = "deps/marble_data/bmng/world.200405.3x21600x21600.A1.jpg";
+            const char* imgconv = "build/bin/imgconv";
+            const char* args[] = {imgconv, "jpg", src, "--width", "10800", "--height", "10800", "--output", bmng, NULL};
+            if (!my_spawn(imgconv, args)) return 1;
+        }
+
+        if (!copy_file("deps/marble_data/topo/gebco_08_rev_elev_A1_grey_geo.tif", "install/data/topo/A1.tif")) return 1;
+
+        if (!copy_file("build/bin/marble.exe", "install/bin/marble.exe")) return 1;
+    }
 
     return 0;
 }

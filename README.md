@@ -1,4 +1,4 @@
-## Overview
+# [marble](https://github.com/melgrin/marble)
 
 Low-fidelity topographical 3D earth surface viewer
 
@@ -20,6 +20,11 @@ Low-fidelity topographical 3D earth surface viewer
 - [imgui](https://github.com/ocornut/imgui), [cimgui](https://github.com/cimgui/cimgui), [rlImGui](https://github.com/raylib-extras/rlImGui)
 
 
+## Supported Platforms
+- Windows x64
+- TODO: Linux amd64
+
+
 ## Building
 
 First build:
@@ -39,12 +44,13 @@ build.exe
 ## Running
 
 ```
-.\build\bin\marble.exe
+.\install\bin\marble.exe
 ```
+
 
 ## How does it work?
 
-- There are two images, topographic and color (BMNG).
+- There are two images, topographic and color.
 - Both are of the same region ("A1" region from NASA's global image grid, currently).
 - Topographic is used to make a heightmap.
 - Color is used as a texture, overlaid on the heightmap.

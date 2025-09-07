@@ -4,6 +4,7 @@
 #include <string.h> // memcpy
 #include <math.h> // floor
 
+#define SUPPORT_FILEFORMAT_JPG
 #include <raylib.h>
 
 #define CIMGUI_DEFINE_ENUMS_AND_STRUCTS
@@ -20,59 +21,26 @@
 //#define QOI_IMPLEMENTATION // raylib defines this
 #include <qoi.h>
 
-#include "./common.c"
+#define RAW_FILE_IMPLEMENTATION
+
+#include "./common.h"
+#include "./imgconv.h"
+#include "./file.h"
+#include "./logger.h"
+
 #include "./geotiff.c"
 #include "./raw_file.c"
 #include "./camera.c"
 #include "./world_to_screen.c"
-#include "./logger.c"
 #include "./tiles.c"
 
-
 static Img load_image(const char* filename) {
-    double t0 = GetTime();
-
-    const char* ext = strrchr(filename, '.');
-    if (!ext) exit(1);
-
     u8* data;
     u32 w, h, n;
-    if (0 == strcmp(ext, ".raw")) {
-        RawImageInfo info;
-        if (!raw_read(filename, &data, &info)) {
-            printf("Failed to load %s\n", filename);
-            exit(1);
-        }
-        w = info.width;
-        h = info.height;
-        n = info.channels;
-    } else if (0 == strcmp(ext, ".qoi")) {
-        qoi_desc desc;
-        void* mem = qoi_read(filename, &desc, 0);
-        if (!mem) {
-            printf("Failed to load %s\n", filename);
-            exit(1);
-        }
-        data = mem;
-        w = desc.width;
-        h = desc.height;
-        n = desc.channels;
-    } else {
-        int x, y, comp;
-        data = stbi_load(filename, &x, &y, &comp, 0);
-        if (!data) {
-            printf("Failed to load %s: %s\n", filename, stbi_failure_reason());
-            exit(1);
-        }
-        assert(x > 0);
-        assert(y > 0);
-        w = (u32) x;
-        h = (u32) y;
-        n = (u32) comp;
-    }
 
-    double elapsed = GetTime() - t0;
-    printf("loaded %s in %.3f seconds; %u x %u, num channels = %u\n", filename, elapsed, w, h, n);
+    if (!read_image(filename, &data, &w, &h, &n)) {
+        exit(1);
+    }
 
     assert(n == 1 || n == 2 || n == 3 || n == 4);
 
@@ -114,8 +82,21 @@ static void draw_text(const char* text, int x, int y, int text_height, Color col
     }
 }
 
+static const char* version = VERSION; // VERSION macro defined via -D in build.c
+static const char* build_date = __DATE__;
+static const char* build_time = __TIME__;
+
 int main() {
     assert(igDebugCheckVersionAndDataLayout(igGetVersion(), sizeof(ImGuiIO), sizeof(ImGuiStyle), sizeof(ImVec2), sizeof(ImVec4), sizeof(ImDrawVert), sizeof(ImDrawIdx)));
+
+    printf("marble version %s\n", version);
+    printf("marble build time %s %s\n", build_date, build_time);
+
+    {
+        char dir[1024];
+        if (!get_program_directory(dir, sizeof(dir))) exit(1);
+        if (!change_directory(dir)) exit(1);
+    }
 
     const int screenWidth = 800;
     const int screenHeight = 600;
@@ -125,17 +106,25 @@ int main() {
     printf("%.3f seconds for InitWindow\n", GetTime() - t0);
     SetExitKey(KEY_NULL); // prevent Escape from closing window
 
-    Logger logger = {0};
-    logger.file = fopen("local/log.txt", "ab");
-    log_info(&logger, "\nsession start\n");
+    create_directory("../logs");
+    Logger logger = new_log_file("../logs");
+    remove_old_log_files("../logs", 10);
+    log_info(&logger, "marble version %s\n", version);
+    log_info(&logger, "marble build time %s %s\n", build_date, build_time);
 
-    const char* topo_image_filename = "deps/marble_data/topo/gebco_08_rev_elev_A1_grey_geo.tif";
+    const char* topo_image_filename = "../data/topo/A1.tif";
     GeoTIFFData topo_image_full;
     if (!geotiff_read(topo_image_filename, &topo_image_full)) return 1;
     printf("geo tie lat: %f\ngeo tie lon: %f\ngeo scale lat: %f\ngeo scale lon %f\n",
         topo_image_full.geo.tie_lat, topo_image_full.geo.tie_lon,
         topo_image_full.geo.scale_lat, topo_image_full.geo.scale_lon);
 
+    const int imgw = 10800;
+    const int imgh = 10800;
+
+    // don't want to deal with "could be any size" situation, because that's just not realistic.  but would be nice to have a bit smarter handling here.  basically load topo and bmng sizes, see if they're equal (no action), or if they're the same aspect ratio as each other (resize) (maybe mod == 0 instead of just aspect ratio? probably not), or error.
+    assert(imgw == topo_image_full.width);
+    assert(imgh == topo_image_full.height);
 
     // ok with cull distance 1000 and 10000
     const int tilew = 200;
@@ -144,15 +133,25 @@ int main() {
     Vector2 tl = {0, 0};
     Vector2 br = {tl.x + tilew, tl.y + tileh};
 
-    const int TILE_X_INDEX_MAX = 10800 / tilew;
-    const int TILE_Y_INDEX_MAX = 10800 / tileh;
+    const int TILE_X_INDEX_MAX = imgw / tilew;
+    const int TILE_Y_INDEX_MAX = imgh / tileh;
     int tile_x_index = 0;
     int tile_y_index = 0;
 
+    const double initial_lat = 58.363733;
+    const double initial_lon = -160.382731;
+    const float initial_elevation = 20.0f; // @Elevation
+
     Camera camera = { 0 };
     //camera.position = (Vector3){ (float) (tl.x + tilew/2), 8.0f /* @Elevation */, (float) (tl.y + tileh/2) };
-    camera.position = (Vector3){ (float) (10800/2), 8.0f /* @Elevation */, (float) (10800/2) };
-    camera.target = (Vector3){ br.x, 8.0f /* @Elevation */, br.y };
+    //camera.position = (Vector3){ (float) (imgw/2), , (float) (imgh/2) };
+    {
+        Vec2 pos = geotiff_lat_lon_to_x_y(initial_lat, initial_lon, topo_image_full.geo);
+        camera.position.x = (float) pos.x;
+        camera.position.z = (float) pos.y;
+    }
+    camera.position.y = initial_elevation;
+    camera.target = (Vector3){ br.x, initial_elevation, br.y };
     camera.up = (Vector3){ 0.0f, 1.0f, 0.0f };
     camera.fovy = 60; // 45.0f;
     camera.projection = CAMERA_PERSPECTIVE;
@@ -164,7 +163,19 @@ int main() {
         camera.position.z == camera.target.z));
 
 
-    const char* color_image_filename = "local/world.200405.3x10800x10800.A1.raw";
+    const char* bmng_raw = "../data/bmng/A1.raw";
+    {
+        const char* bmng_jpg = "../data/bmng/A1.jpg";
+        bool need_raw = file_exists(bmng_jpg) && !file_exists(bmng_raw);
+        if (need_raw) {
+            if (!imgconv(bmng_jpg, ".raw", imgw, imgh, bmng_raw)) {
+                printf("Failed to convert %s to %s\n", bmng_jpg, bmng_raw);
+                exit(1);
+            }
+        }
+    }
+
+    const char* color_image_filename = bmng_raw;
     Img color_image_full = load_image(color_image_filename);
     if (color_image_full.w != topo_image_full.width ||
         color_image_full.h != topo_image_full.height) {
@@ -222,7 +233,7 @@ int main() {
     const size_t keyboard_shortcuts_len = arraylen(keyboard_shortcuts);
     KeyboardShortcut debug_window_key = {NULL, KEY_ESCAPE, "Escape"};
 
-    Vector3 model_position = (Vector3){ tl.x, 0.0f, tl.y };
+    //Vector3 model_position = (Vector3){ tl.x, 0.0f, tl.y };
     const float rotationAngle = 0.0f;
     const Vector3 rotationAxis = { 0.0f, 1.0f, 0.0f };
     Vector3 vScale = { 1.0f, 0.2f, 1.0f }; // XXX 0.2 is to scale down the vertical in the Seattle region heightmap I'm using.  There's probably a definition of what the scaling should be somewhere and/or I need to think about it more.  (The scaling is initially controlled by the 'size' Vector3 passed to GenMeshHeightmap)
@@ -413,7 +424,7 @@ int main() {
 
                 igText("Press %s to select this window", debug_window_key.description);
 
-                if (igTreeNodeEx_Str("Position", ImGuiTreeNodeFlags_SpanAvailWidth | ImGuiTreeNodeFlags_DefaultOpen)) {
+                if (igTreeNodeEx_Str("Position", ImGuiTreeNodeFlags_SpanAvailWidth /*| ImGuiTreeNodeFlags_DefaultOpen*/)) {
 
                     static const float input_width = 90;
 
@@ -471,8 +482,8 @@ int main() {
                         bool go_button_pressed = igButton("Go to tile x/y index", (ImVec2){0,0});
                         igEndDisabled();
                         if (go_button_pressed) {
-                            camera.position.x = new_x_index * tilew + tilew/2.0;
-                            camera.position.z = new_y_index * tileh + tileh/2.0;
+                            camera.position.x = new_x_index * tilew + ((float)tilew)/2.0f;
+                            camera.position.z = new_y_index * tileh + ((float)tileh)/2.0f;
                         }
                     }
 
@@ -534,6 +545,28 @@ int main() {
                         igTableNextColumn(); igText("%.3f", camera.up.x);
                         igTableNextColumn(); igText("%.3f", camera.up.y);
                         igTableNextColumn(); igText("%.3f", camera.up.z);
+                        igEndTable();
+                    }
+                    igTreePop();
+                }
+
+                if (igTreeNodeEx_Str("About", ImGuiTreeNodeFlags_SpanAvailWidth)) {
+                    igText("Version: %s", version);
+                    igText("Build Date: %s %s\n", build_date, build_time);
+                    igTreePop();
+                }
+
+                if (igTreeNodeEx_Str("Help", ImGuiTreeNodeFlags_SpanAvailWidth)) {
+                    if (igBeginTable("##ControlsTable", 2, ImGuiTableFlags_None, (ImVec2){0,0}, 0)) {
+                        igTableSetupColumn(NULL, ImGuiTableColumnFlags_WidthFixed, 0, 0);
+                        igTableSetupColumn(NULL, ImGuiTableColumnFlags_WidthStretch, 0, 0);
+                        // controls per ./camera.c
+                        igTableNextColumn(); igText("Move");      igTableNextColumn(); igText("WASD");
+                        igTableNextColumn(); igText("Look");      igTableNextColumn(); igText("mouse or arrows");
+                        igTableNextColumn(); igText("Fast");      igTableNextColumn(); igText("left shift");
+                        igTableNextColumn(); igText("Slow");      igTableNextColumn(); igText("left alt");
+                        igTableNextColumn(); igText("Move Up");   igTableNextColumn(); igText("space");
+                        igTableNextColumn(); igText("Move Down"); igTableNextColumn(); igText("left ctrl");
                         igEndTable();
                     }
                     igTreePop();

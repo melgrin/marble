@@ -1,0 +1,69 @@
+name: marble build
+
+on:
+  push:
+    branches:
+      - "main"
+    tags:
+      - "*"
+
+  # release:
+  #   types: [published]
+
+
+jobs:
+  build_windows:
+    runs-on: windows-2022
+
+    steps:
+
+      - name: Name
+        run: |
+          if [[ "${{ github.ref_type }}" == "tag" ]]; then
+            detail=${{ github.ref_name }}
+          elif [[ "${{ github.ref_type }}" == "branch" ]]; then
+            detail=${{ github.ref_name }}_${{ github.sha }}
+          else
+            detail=${{ github.sha }}
+          fi
+          echo "UPLOAD_NAME=marble_windows_${detail}" | sed "s#/#_#g" >> $GITHUB_ENV
+        shell: bash
+
+      - name: Clone
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Build
+        # the location of vcvars is guaranteed for Windows runners - see https://github.com/actions/runner-images/blob/main/images/windows/Windows2022-Readme.md#visual-studio-enterprise-2022
+        run: >
+          call "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Auxiliary\Build\vcvars64.bat" &&
+          cl.exe -DRELEASE build.c &&
+          .\build.exe
+        shell: cmd
+
+      - name: Upload
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.UPLOAD_NAME }}
+          path: install # build.c is hardcoded to put files here
+
+      # I don't want to need to publish a release to see if this works
+      # - if: github.event_name == 'release' && github.event.action == 'published'
+      #   name: release upload
+      #   uses: actions/upload-release-asset@v1
+      #   env:
+      #     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      #   with:
+      #     upload_url: ${{ github.event.release.upload_url }}
+      #     asset_path: install
+      #     asset_name: ${{ env.UPLOAD_NAME }}
+      #     # asset_content_type: application/zip
+
+      # - if: github.event_name == 'release' && github.event.action == 'published'
+      # - if: github.ref_type == 'tag'
+      #   name: Upload build artifacts to release
+      #   uses: softprops/action-gh-release@v2
+      #   with:
+      #     files: install  # not sure how to name this
+
