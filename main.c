@@ -424,7 +424,7 @@ int main() {
 
                 igText("Press %s to select this window", debug_window_key.description);
 
-                if (igTreeNodeEx_Str("Position", ImGuiTreeNodeFlags_SpanAvailWidth | ImGuiTreeNodeFlags_DefaultOpen)) {
+                if (igTreeNodeEx_Str("Position", ImGuiTreeNodeFlags_SpanAvailWidth /*| ImGuiTreeNodeFlags_DefaultOpen*/)) {
 
                     static const float input_width = 90;
 
@@ -553,6 +553,22 @@ int main() {
                 if (igTreeNodeEx_Str("About", ImGuiTreeNodeFlags_SpanAvailWidth)) {
                     igText("Version: %s", version);
                     igText("Build Date: %s %s\n", build_date, build_time);
+                    igTreePop();
+                }
+
+                if (igTreeNodeEx_Str("Help", ImGuiTreeNodeFlags_SpanAvailWidth)) {
+                    if (igBeginTable("##ControlsTable", 2, ImGuiTableFlags_None, (ImVec2){0,0}, 0)) {
+                        igTableSetupColumn(NULL, ImGuiTableColumnFlags_WidthFixed, 0, 0);
+                        igTableSetupColumn(NULL, ImGuiTableColumnFlags_WidthStretch, 0, 0);
+                        // controls per ./camera.c
+                        igTableNextColumn(); igText("Move");      igTableNextColumn(); igText("WASD");
+                        igTableNextColumn(); igText("Look");      igTableNextColumn(); igText("mouse or arrows");
+                        igTableNextColumn(); igText("Fast");      igTableNextColumn(); igText("left shift");
+                        igTableNextColumn(); igText("Slow");      igTableNextColumn(); igText("right shift");
+                        igTableNextColumn(); igText("Move Up");   igTableNextColumn(); igText("space");
+                        igTableNextColumn(); igText("Move Down"); igTableNextColumn(); igText("left ctrl");
+                        igEndTable();
+                    }
                     igTreePop();
                 }
 
