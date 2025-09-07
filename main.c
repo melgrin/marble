@@ -109,6 +109,8 @@ int main() {
     create_directory("../logs");
     Logger logger = new_log_file("../logs");
     remove_old_log_files("../logs", 10);
+    log_info(&logger, "marble version %s\n", version);
+    log_info(&logger, "marble build time %s %s\n", build_date, build_time);
 
     const char* topo_image_filename = "../data/topo/A1.tif";
     GeoTIFFData topo_image_full;

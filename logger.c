@@ -40,7 +40,7 @@ Logger new_log_file(const char* directory) {
     if (!logger.file) {
         printf("Failed to initialize logger: failed to open file '%s': error %d: %s\n", log_filename, errno, strerror(errno));
     }
-    log_info(&logger, "\n%s %s session start\n", d0, t0);
+    log_info(&logger, "%s %s session start\n", d0, t0);
     return logger;
 }
 

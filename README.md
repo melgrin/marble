@@ -1,3 +1,6 @@
+# [marble](https://github.com/melgrin/marble)
+
+
 ## Overview
 
 Low-fidelity topographical 3D earth surface viewer
@@ -39,12 +42,12 @@ build.exe
 ## Running
 
 ```
-.\build\bin\marble.exe
+.\install\bin\marble.exe
 ```
 
 ## How does it work?
 
-- There are two images, topographic and color (BMNG).
+- There are two images, topographic and color.
 - Both are of the same region ("A1" region from NASA's global image grid, currently).
 - Topographic is used to make a heightmap.
 - Color is used as a texture, overlaid on the heightmap.

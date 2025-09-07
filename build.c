@@ -486,6 +486,9 @@ int main(int argc, char** argv) {
         if (!my_mkdir("install/data")) return 1;
         if (!my_mkdir("install/data/bmng")) return 1;
         if (!my_mkdir("install/data/topo")) return 1;
+
+        if (!copy_file("README.md", "install/README.md")) return 1;
+        if (!copy_file("LICENSE.txt", "install/LICENSE.txt")) return 1;
         
         const char* bmng = "install/data/bmng/A1.jpg";
         if (!file_exists(bmng)) {
