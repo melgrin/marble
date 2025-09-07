@@ -13,7 +13,7 @@ void UpdateCamera_custom(Camera* camera, int camera_mode) {
 
     float move_speed = CAMERA_MOVE_SPEED;
     if (IsKeyDown(KEY_LEFT_SHIFT)) move_speed *= 10.0f;
-    if (IsKeyDown(KEY_RIGHT_SHIFT)) move_speed /= 10.0f;
+    if (IsKeyDown(KEY_LEFT_ALT)) move_speed /= 10.0f;
 
     if (IsKeyDown(KEY_DOWN)) CameraPitch(camera, -CAMERA_ROTATION_SPEED, lock_view, rotate_around_target, rotate_up);
     if (IsKeyDown(KEY_UP  )) CameraPitch(camera,  CAMERA_ROTATION_SPEED, lock_view, rotate_around_target, rotate_up);

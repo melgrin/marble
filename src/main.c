@@ -564,7 +564,7 @@ int main() {
                         igTableNextColumn(); igText("Move");      igTableNextColumn(); igText("WASD");
                         igTableNextColumn(); igText("Look");      igTableNextColumn(); igText("mouse or arrows");
                         igTableNextColumn(); igText("Fast");      igTableNextColumn(); igText("left shift");
-                        igTableNextColumn(); igText("Slow");      igTableNextColumn(); igText("right shift");
+                        igTableNextColumn(); igText("Slow");      igTableNextColumn(); igText("left alt");
                         igTableNextColumn(); igText("Move Up");   igTableNextColumn(); igText("space");
                         igTableNextColumn(); igText("Move Down"); igTableNextColumn(); igText("left ctrl");
                         igEndTable();
