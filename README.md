@@ -1,8 +1,5 @@
 # [marble](https://github.com/melgrin/marble)
 
-
-## Overview
-
 Low-fidelity topographical 3D earth surface viewer
 
 ![view](https://raw.githubusercontent.com/melgrin/marble_data/refs/heads/main/marble_samples/view.png)
@@ -21,6 +18,11 @@ Low-fidelity topographical 3D earth surface viewer
 - [stb](https://github.com/nothings/stb)
 - [qoi](https://github.com/phoboslab/qoi)
 - [imgui](https://github.com/ocornut/imgui), [cimgui](https://github.com/cimgui/cimgui), [rlImGui](https://github.com/raylib-extras/rlImGui)
+
+
+## Supported Platforms
+- Windows x64
+- TODO: Linux amd64
 
 
 ## Building
@@ -44,6 +46,7 @@ build.exe
 ```
 .\install\bin\marble.exe
 ```
+
 
 ## How does it work?
 
