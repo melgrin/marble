@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <stdint.h>
 
-#include "../geotiff.c"
+#include "../src/geotiff.c"
 
 #define expect_eq(A,B) do { \
     if ((A) == (B)) printf("Pass: %s == %s\n", #A, #B); \

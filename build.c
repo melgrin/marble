@@ -16,8 +16,8 @@
 #include <process.h> // spawnl
 #endif
 
-#include "./common.c"
-#include "./file.c"
+#include "./src/common.c"
+#include "./src/file.c"
 
 bool my_mkdir(const char* path) {
     printf("[info] mkdir %s\n", path);
@@ -335,9 +335,9 @@ int main(int argc, char** argv) {
     if (!my_mkdir("build/obj")) return 1;
 
 #if RELEASE
-#define MAIN_COMPILE_FLAGS " -nologo "
+#define MAIN_COMPILE_FLAGS " -nologo -I src "
 #else
-#define MAIN_COMPILE_FLAGS " -nologo -Z7 "
+#define MAIN_COMPILE_FLAGS " -nologo -I src -Z7 "
 #endif
 
 #define MAIN_WARN_FLAGS " -W3 -WX -wd4996 -wd4101 "
@@ -345,7 +345,7 @@ int main(int argc, char** argv) {
     if (!sys("cl -c -Fo:build/obj/"
         MAIN_COMPILE_FLAGS
         MAIN_WARN_FLAGS
-        " common.c"
+        " src/common.c"
     )) return 1;
 
     if (!sys("cl -c -Fo:build/obj/"
@@ -355,19 +355,19 @@ int main(int argc, char** argv) {
         " -I deps/qoi"
         " -I deps/libtiff_config"
         " -I deps/libtiff/libtiff"
-        " imgconv.c"
+        " src/imgconv.c"
     )) return 1;
 
     if (!sys("cl -c -Fo:build/obj/"
         MAIN_COMPILE_FLAGS
         MAIN_WARN_FLAGS
-        " file.c"
+        " src/file.c"
     )) return 1;
 
     if (!sys("cl -c -Fo:build/obj/"
         MAIN_COMPILE_FLAGS
         MAIN_WARN_FLAGS
-        " logger.c"
+        " src/logger.c"
     )) return 1;
 
     char version[64];
@@ -394,7 +394,7 @@ int main(int argc, char** argv) {
         // raylib.lib needs to come before user32.lib, otherwise there's a symbol clash with "CloseWindow".
         " deps/build/raylib.lib deps/build/libtiff.lib deps/build/imgui.lib"
         " gdi32.lib msvcrt.lib winmm.lib user32.lib shell32.lib" 
-        " main.c"
+        " src/main.c"
         " -link -NODEFAULTLIB:libcmt"
         , version
     );
@@ -424,7 +424,7 @@ int main(int argc, char** argv) {
         " build/obj/file.obj"
         " build/obj/qoi.obj"
         " deps/build/libtiff.lib"
-        " imgconv.c"
+        " src/imgconv.c"
         ;
 
     if (!sys(build_imgconv)) return 1;

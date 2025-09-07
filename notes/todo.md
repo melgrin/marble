@@ -1,6 +1,19 @@
 - github actions extras
-  - TODO actions/stale@v9, or see if there's an "expires" setting with upload
+  - TODO actions/stale@v9, or see if there's an "expires" setting with upload (there is, see upload-artifact: with: retention-days:).  this is also apparently a "repository setting", so I could look into that.
   - TODO? schedule: cron:
+  - add `workflow_dispatch`.  this enables button on web ui to manually run a workflow.  it must be in the workflow yml on the default branch (main)
+
+- maybe resize topo *up* to 21600x21600 instead of resizing bmng *down* to 10800x10800 to avoid quality loss
+
+- manage image sizes intelligently?
+  - lots of hardcoded 10800 and 21600 around
+  - can read out of the file metadata via `stb_info`
+
+- build doesn't need to generate .raw via imgconv.exe anymore.  it's in main.c now.
+
+- depth 1 yet recursive submodule clone?
+
+- dll separation between raylib and my code because things like stb and Windows (you might have heard of it, but raysan has not) tend to clash
 
 - ui
   - debug pressing escape from within input field then ui defocus button causes two problems:  1) teleports view 2) keeps mouse visible, which causes camera to not be able to turn freely.  something to do with GLFW cursor mode.  step through ~5 frames to see it  erroneously go from DISABLED to NORMAL.  not sure why its that many frames.  I think rlImGuiBegin is maybe seeing the cursor update from my DisableCursor call, and that causes it to Show/Hide.

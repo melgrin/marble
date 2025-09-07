@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <stdint.h>
 
-#include "../common.c"
+#include "../src/common.c"
 
 #define test_one_rstrip(input, expected) do { \
     char buf[128] = {0}; \
